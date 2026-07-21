@@ -65,6 +65,10 @@
 <link href="{{ asset('vendor/tom-select/tom-select.min.css') }}" rel="stylesheet">
 <script src="{{ asset('vendor/tom-select/tom-select.complete.min.js') }}"></script>
 
+{{-- Flatpickr (modern date-range picker) --}}
+<link href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}" rel="stylesheet">
+<script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
+
 {{-- Lucide icons (framework-agnostic SVGs) --}}
 <script src="{{ asset('vendor/lucide/lucide.min.js') }}"></script>
 
@@ -164,6 +168,16 @@
   /* Tom Select on-brand focus */
   .ts-control { border-radius: .5rem !important; border-color: var(--cpsu-border) !important; padding: .4rem .6rem !important; }
   .ts-control.focus { border-color: var(--cpsu-green) !important; box-shadow: 0 0 0 3px rgba(11,110,46,.12) !important; }
+
+  /* Flatpickr — CPSU green accents */
+  .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
+  .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange {
+    background: var(--cpsu-green) !important; border-color: var(--cpsu-green) !important; color: #fff !important;
+  }
+  .flatpickr-day.inRange { background: #eaf3ec !important; border-color: #eaf3ec !important; box-shadow: -5px 0 0 #eaf3ec, 5px 0 0 #eaf3ec !important; }
+  .flatpickr-day:hover { background: var(--cpsu-gray-bg) !important; }
+  .flatpickr-months .flatpickr-month, span.flatpickr-weekday { color: var(--cpsu-green) !important; fill: var(--cpsu-green) !important; }
+  .flatpickr-monthDropdown-months, .numInputWrapper { color: var(--cpsu-black); }
 
   /* Badge cross-fade for payment status toggle */
   .badge-fade { transition: background-color .35s ease, color .35s ease, border-color .35s ease; }

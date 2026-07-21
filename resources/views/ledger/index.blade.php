@@ -11,10 +11,10 @@
         to: @js(now()->endOfYear()->toDateString()),
      })">
 
-    {{-- Filter form --}}
+    {{-- Filter form (single row: item · date range · generate) --}}
     <div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5 mb-4" data-aos="fade-up">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <div class="lg:col-span-2">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+            <div class="sm:col-span-6">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Item</label>
                 <select id="ledger-item" x-model="itemId" autocomplete="off"
                         class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
@@ -24,21 +24,17 @@
                     @endforeach
                 </select>
             </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
-                <input type="date" x-model="from"
-                       class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm focus:border-cpsu-green outline-none">
+            <div class="sm:col-span-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Date Range</label>
+                <div class="relative">
+                    <i data-lucide="calendar" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input id="ledger-range" type="text" readonly placeholder="Select date range"
+                           class="w-full rounded-lg border border-cpsu-border pl-9 pr-3 py-2 text-sm bg-white focus:border-cpsu-green outline-none cursor-pointer">
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
-                <input type="date" x-model="to"
-                       class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm focus:border-cpsu-green outline-none">
+            <div class="sm:col-span-2">
+                <x-ui.button variant="primary" icon="file-text" class="w-full" x-on:click="generate()">Generate</x-ui.button>
             </div>
-        </div>
-        <div class="flex items-center gap-2 mt-4">
-            <x-ui.button variant="primary" icon="file-text" x-on:click="generate()">Generate</x-ui.button>
-            <x-ui.button variant="ghost" icon="external-link" x-show="url" x-cloak x-on:click="openTab()">Open in new tab</x-ui.button>
-            <p x-show="!itemId" class="text-xs text-gray-400">Select an item to generate the ledger card.</p>
         </div>
     </div>
 
@@ -67,17 +63,25 @@
       init() {
         var self = this;
         new TomSelect('#ledger-item', { create: false, allowEmptyOption: true });
+        flatpickr('#ledger-range', {
+          mode: 'range', dateFormat: 'Y-m-d',
+          defaultDate: [cfg.from, cfg.to],
+          onChange: function (dates) {
+            if (dates.length === 2) {
+              self.from = self.fmt(dates[0]);
+              self.to = self.fmt(dates[1]);
+            }
+          },
+        });
       },
-      buildUrl() {
-        var p = new URLSearchParams({ item_id: this.itemId, from: this.from, to: this.to });
-        return cfg.base + '?' + p.toString();
+      fmt(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       },
       generate() {
         if (!this.itemId) { CPSU.toast('Please select an item first.', 'error'); return; }
-        // cache-bust so re-generating with new filters always reloads
-        this.url = this.buildUrl() + '&_=' + Date.now();
+        var p = new URLSearchParams({ item_id: this.itemId, from: this.from, to: this.to, _: Date.now() });
+        this.url = cfg.base + '?' + p.toString();
       },
-      openTab() { if (this.url) window.open(this.url, '_blank'); },
     };
   }
 </script>
