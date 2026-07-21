@@ -165,8 +165,15 @@
   .cpsu-table { width: 100%; table-layout: auto; }
   .cpsu-table td, .cpsu-table th { word-break: break-word; overflow-wrap: anywhere; }
 
-  /* Tom Select on-brand focus */
-  .ts-control { border-radius: .5rem !important; border-color: var(--cpsu-border) !important; padding: .4rem .6rem !important; }
+  /* Tom Select on-brand focus + height matched to native inputs (py-2 text-sm = 38px) */
+  .ts-wrapper { margin: 0 !important; }
+  .ts-control {
+    border-radius: .5rem !important; border-color: var(--cpsu-border) !important;
+    min-height: 38px !important; padding: 3px 12px !important; font-size: .875rem !important;
+    display: flex !important; align-items: center !important; box-shadow: none !important;
+  }
+  .ts-control > * { margin-bottom: 0 !important; }
+  .ts-control > input { margin: 0 !important; line-height: 1.25rem; }
   .ts-control.focus { border-color: var(--cpsu-green) !important; box-shadow: 0 0 0 3px rgba(11,110,46,.12) !important; }
 
   /* Flatpickr — CPSU green accents */

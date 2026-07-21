@@ -33,7 +33,7 @@
                 </div>
             </div>
             <div class="sm:col-span-2">
-                <x-ui.button variant="primary" icon="file-text" class="w-full" x-on:click="generate()">Generate</x-ui.button>
+                <x-ui.button variant="primary" icon="file-text" class="w-full h-[38px]" x-on:click="generate()">Generate</x-ui.button>
             </div>
         </div>
     </div>
