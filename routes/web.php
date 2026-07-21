@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\Setup\AccountTitleController;
 use App\Http\Controllers\Setup\FundClusterController;
 use App\Http\Controllers\Setup\LocationController;
@@ -74,6 +75,15 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/deliveries/{delivery}', [DeliveryController::class, 'show'])->name('deliveries.show');
     });
 
+    /* ---- Releasing (Phase 6) ---- */
+
+    Route::middleware('page:releasing')->group(function () {
+        Route::get('/releases', [ReleaseController::class, 'index'])->name('releases.index');
+        Route::get('/releases/create', [ReleaseController::class, 'create'])->name('releases.create');
+        Route::post('/releases', [ReleaseController::class, 'store'])->name('releases.store');
+        Route::get('/releases/{release}', [ReleaseController::class, 'show'])->name('releases.show');
+    });
+
     /* ---- Setup: Reference data (Phase 3) ---- */
 
     Route::middleware('page:locations')->group(function () {
@@ -115,3 +125,14 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::patch('/suppliers/{supplier}/toggle', [SupplierController::class, 'toggle'])->name('suppliers.toggle');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Payment-status toggle (Phase 6) — the ONE write exception for accounting.
+|--------------------------------------------------------------------------
+| Registered OUTSIDE the deny.accounting.write group. Allowed for
+| administrator + accounting_staff only.
+*/
+Route::middleware(['auth', 'page:releasing', 'role:administrator,accounting_staff'])
+    ->patch('/releases/{release}/items/{item}/payment-status', [ReleaseController::class, 'togglePayment'])
+    ->name('releases.items.payment');
