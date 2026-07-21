@@ -12,7 +12,7 @@
      })">
 
     {{-- Filter form (single row: item · date range · generate) --}}
-    <div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5 mb-4" data-aos="fade-up">
+    <div class="relative z-30 bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5 mb-4" data-aos="fade-up">
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
             <div class="sm:col-span-6">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Item</label>
@@ -40,7 +40,7 @@
 
     {{-- Generated card (iframe) --}}
     <div x-show="url" x-cloak data-aos="fade-up"
-         class="bg-white rounded-xl border border-cpsu-border shadow-sm overflow-hidden">
+         class="relative z-10 bg-white rounded-xl border border-cpsu-border shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-cpsu-border flex items-center gap-2">
             <i data-lucide="notebook-text" class="w-4 h-4 text-cpsu-green"></i>
             <h3 class="font-bold text-sm">Supplies Ledger Card</h3>
