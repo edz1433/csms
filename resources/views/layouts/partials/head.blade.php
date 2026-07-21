@@ -165,15 +165,17 @@
   .cpsu-table { width: 100%; table-layout: auto; }
   .cpsu-table td, .cpsu-table th { word-break: break-word; overflow-wrap: anywhere; }
 
-  /* Tom Select on-brand focus + height matched to native inputs (py-2 text-sm = 38px) */
+  /* Tom Select on-brand focus + exact 38px height to match native inputs (py-2 text-sm) */
   .ts-wrapper { margin: 0 !important; }
-  .ts-control {
+  .ts-wrapper.single .ts-control {
+    box-sizing: border-box !important;
     border-radius: .5rem !important; border-color: var(--cpsu-border) !important;
-    min-height: 38px !important; padding: 3px 12px !important; font-size: .875rem !important;
-    display: flex !important; align-items: center !important; box-shadow: none !important;
+    height: 38px !important; min-height: 38px !important;
+    padding: 0 12px !important; font-size: .875rem !important;
+    display: flex !important; flex-wrap: nowrap !important; align-items: center !important; box-shadow: none !important;
   }
-  .ts-control > * { margin-bottom: 0 !important; }
-  .ts-control > input { margin: 0 !important; line-height: 1.25rem; }
+  .ts-wrapper.single .ts-control > * { margin: 0 !important; padding: 0 !important; line-height: 36px !important; height: 36px !important; }
+  .ts-wrapper.single .ts-control > input { min-height: 0 !important; }
   .ts-control.focus { border-color: var(--cpsu-green) !important; box-shadow: 0 0 0 3px rgba(11,110,46,.12) !important; }
 
   /* Flatpickr — CPSU green accents */
