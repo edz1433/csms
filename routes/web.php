@@ -84,6 +84,7 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/releases/create', [ReleaseController::class, 'create'])->name('releases.create');
         Route::post('/releases', [ReleaseController::class, 'store'])->name('releases.store');
         Route::get('/releases/{release}', [ReleaseController::class, 'show'])->name('releases.show');
+        Route::get('/releases/{release}/pdf', [ReleaseController::class, 'pdf'])->name('releases.pdf');
     });
 
     /* ---- User Management (Phase 8) — Administrators only ---- */

@@ -156,4 +156,22 @@ class ReleaseController extends Controller
 
         return view('releasing.show', compact('release'));
     }
+
+    /** Render the RIS as a COA-style PDF (opens inline / in a new tab). */
+    public function pdf(Release $release)
+    {
+        $release->load(['location', 'fundCluster', 'releaser', 'items.item.unit', 'items.unit']);
+
+        $headerPath = public_path('doc-sample/requisition-slip-header.png');
+        $header = is_file($headerPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($headerPath))
+            : null;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('releasing.pdf', [
+            'release' => $release,
+            'header' => $header,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream('RIS-'.$release->ris_number.'.pdf');
+    }
 }
