@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\ReleaseController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Setup\AccountTitleController;
 use App\Http\Controllers\Setup\FundClusterController;
 use App\Http\Controllers\Setup\LocationController;
@@ -82,6 +83,15 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/releases/create', [ReleaseController::class, 'create'])->name('releases.create');
         Route::post('/releases', [ReleaseController::class, 'store'])->name('releases.store');
         Route::get('/releases/{release}', [ReleaseController::class, 'show'])->name('releases.show');
+    });
+
+    /* ---- Reports (Phase 7) ---- */
+
+    Route::middleware('page:reports')->group(function () {
+        Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('/reports/stock-card', [ReportsController::class, 'stockCard'])->name('reports.stock-card');
+        Route::get('/reports/payment-status', [ReportsController::class, 'paymentStatus'])->name('reports.payment-status');
+        Route::get('/reports/{report}/export', [ReportsController::class, 'export'])->name('reports.export');
     });
 
     /* ---- Setup: Reference data (Phase 3) ---- */
