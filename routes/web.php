@@ -6,6 +6,7 @@ use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\Setup\AccountTitleController;
 use App\Http\Controllers\Setup\FundClusterController;
 use App\Http\Controllers\Setup\LocationController;
@@ -83,6 +84,16 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/releases/create', [ReleaseController::class, 'create'])->name('releases.create');
         Route::post('/releases', [ReleaseController::class, 'store'])->name('releases.store');
         Route::get('/releases/{release}', [ReleaseController::class, 'show'])->name('releases.show');
+    });
+
+    /* ---- User Management (Phase 8) — Administrators only ---- */
+
+    Route::middleware(['page:users', 'role:administrator'])->group(function () {
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+        Route::patch('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     });
 
     /* ---- Reports (Phase 7) ---- */
