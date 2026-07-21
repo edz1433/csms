@@ -95,6 +95,10 @@ class ItemController extends Controller
 
         $timeline = $this->timeline($item, chronological: true); // oldest first (ledger)
 
+        // Opening (Balance Forwarded) = on-hand minus net recorded movement.
+        $netMovement = (float) $item->deliveryItems()->sum('quantity') - (float) $item->releaseItems()->sum('quantity');
+        $beginning = (float) $item->on_hand_qty - $netMovement;
+
         $headerPath = public_path('images/cpsu-letterhead.png');
         $header = is_file($headerPath)
             ? 'data:image/png;base64,'.base64_encode(file_get_contents($headerPath))
@@ -103,6 +107,7 @@ class ItemController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('inventory.pdf', [
             'item' => $item,
             'timeline' => $timeline,
+            'beginning' => $beginning,
             'header' => $header,
         ])->setPaper('a4', 'portrait');
 

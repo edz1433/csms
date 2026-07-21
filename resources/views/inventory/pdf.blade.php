@@ -3,90 +3,120 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 18px 26px; }
+        @page { margin: 20px 26px; }
         * { font-family: 'DejaVu Sans', sans-serif; }
         body { font-size: 9px; color: #000; }
-        .header { width: 100%; text-align: center; margin-bottom: 4px; }
-        .header img { width: 100%; max-height: 78px; }
-        .title { text-align: center; font-weight: bold; font-size: 13px; letter-spacing: 1px; margin: 4px 0 8px; }
+        .appendix { text-align: right; font-style: italic; font-size: 9px; margin-bottom: 2px; }
 
         table { border-collapse: collapse; width: 100%; }
-        td, th { border: 1px solid #000; padding: 3px 5px; vertical-align: top; }
+        .box td, .box th { border: 1px solid #000; padding: 3px 5px; vertical-align: top; }
 
-        .info td { font-size: 9px; }
+        .head-cell { text-align: center; }
+        .head-cell img { width: 62%; max-height: 60px; }
+        .title { font-weight: bold; font-size: 13px; letter-spacing: 1px; margin-top: 3px; }
+
+        .info td { font-size: 9px; height: 15px; }
         .info .lbl { font-weight: bold; }
 
-        table.card { margin-top: 6px; }
-        table.card th { text-align: center; font-weight: bold; font-size: 8.5px; background: #f2f2f2; }
-        table.card td { font-size: 8.5px; height: 15px; }
+        table.card { margin-top: -1px; }
+        table.card th { text-align: center; font-weight: bold; font-size: 8.5px; }
+        table.card th.grp { font-style: italic; }
+        table.card td { font-size: 8.5px; height: 16px; }
         .c { text-align: center; }
         .r { text-align: right; }
-        .muted { color: #555; }
-        .foot { margin-top: 10px; font-size: 8px; color: #666; }
+        .bf { font-style: italic; }
     </style>
 </head>
 <body>
-    {{-- CPSU letterhead (RIS title cropped out) --}}
-    <div class="header">
-        @if ($header)
-            <img src="{{ $header }}" alt="CPSU">
-        @else
-            <div style="font-weight:bold">CENTRAL PHILIPPINES STATE UNIVERSITY</div>
-        @endif
-    </div>
-    <div class="title">STOCK CARD</div>
+    <div class="appendix">Appendix 58</div>
 
-    {{-- Item info --}}
-    <table class="info">
+    {{-- Header box: letterhead + STOCK CARD title --}}
+    <table class="box">
         <tr>
-            <td width="50%"><span class="lbl">Item Code:</span> {{ $item->stock_number }}</td>
-            <td width="50%"><span class="lbl">Unit of Measure:</span> {{ $item->unit?->name }} ({{ $item->unit?->abbreviation }})</td>
-        </tr>
-        <tr>
-            <td colspan="2"><span class="lbl">Item Description:</span> {{ $item->name }}</td>
-        </tr>
-        <tr>
-            <td><span class="lbl">Account Title:</span> {{ $item->accountTitle?->name ?? '—' }}</td>
-            <td><span class="lbl">RCA Code:</span> {{ $item->accountTitle?->rca_code ?? '—' }}</td>
-        </tr>
-        <tr>
-            <td><span class="lbl">Current On-Hand:</span> {{ number_format($item->on_hand_qty, 2) }} {{ $item->unit?->abbreviation }}</td>
-            <td><span class="lbl">Status:</span> {{ $item->is_active ? 'Active' : 'Inactive' }}</td>
+            <td class="head-cell">
+                @if ($header)
+                    <img src="{{ $header }}" alt="CPSU">
+                @else
+                    <div style="font-weight:bold">CENTRAL PHILIPPINES STATE UNIVERSITY</div>
+                    <div>Kabankalan City, Negros Occidental</div>
+                @endif
+                <div class="title">STOCK CARD</div>
+            </td>
         </tr>
     </table>
 
-    {{-- Ledger --}}
-    <table class="card">
+    {{-- Info block --}}
+    <table class="box info" style="margin-top:-1px">
+        <tr>
+            <td width="60%"><span class="lbl">Entity Name:</span> CENTRAL PHILIPPINES STATE UNIVERSITY</td>
+            <td width="40%"><span class="lbl">Fund Cluster:</span> &nbsp;</td>
+        </tr>
+        <tr>
+            <td><span class="lbl">Item :</span> {{ $item->name }}</td>
+            <td><span class="lbl">Stock No. :</span> {{ $item->stock_number }}</td>
+        </tr>
+        <tr>
+            <td><span class="lbl">Description :</span> {{ $item->description }}</td>
+            <td><span class="lbl">Re-order Point :</span> &nbsp;</td>
+        </tr>
+        <tr>
+            <td colspan="2"><span class="lbl">Unit of Measurement :</span> {{ $item->unit?->abbreviation }}</td>
+        </tr>
+    </table>
+
+    {{-- Stock card table --}}
+    @php
+        $minRows = 16;
+        $blanks = max(0, $minRows - $timeline->count());
+        $fmt = fn ($n) => rtrim(rtrim(number_format($n, 2), '0'), '.');
+    @endphp
+    <table class="box card">
         <thead>
             <tr>
-                <th width="13%">DATE</th>
-                <th width="17%">REFERENCE</th>
-                <th width="30%">SUPPLIER / OFFICE</th>
-                <th width="12%">RCA</th>
-                <th width="9%">RECEIPT</th>
-                <th width="9%">ISSUE</th>
-                <th width="10%">BALANCE</th>
+                <th rowspan="2" width="9%">Date</th>
+                <th rowspan="2" width="18%">Reference</th>
+                <th class="grp" width="10%">Receipt</th>
+                <th class="grp" colspan="2">Issue</th>
+                <th class="grp" width="10%">Balance</th>
+                <th rowspan="2" width="13%">No. of Days to Consume</th>
+            </tr>
+            <tr>
+                <th>Qty.</th>
+                <th width="9%">Qty.</th>
+                <th width="21%">Office</th>
+                <th>Qty.</th>
             </tr>
         </thead>
         <tbody>
-            @forelse ($timeline as $row)
+            {{-- Balance Forwarded (beginning balance) --}}
+            <tr>
+                <td></td>
+                <td class="bf">Balance Forwarded (beg.bal)</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="r">{{ $fmt($beginning) }}</td>
+                <td></td>
+            </tr>
+
+            @foreach ($timeline as $row)
                 <tr>
                     <td class="c">{{ $row['date']?->format('m/d/Y') }}</td>
                     <td>{{ $row['ref'] }}</td>
-                    <td>{{ $row['party'] ?? '—' }}</td>
-                    <td class="c">{{ $row['rca'] ?? '' }}</td>
-                    <td class="r">{{ $row['type'] === 'in' ? number_format($row['qty'], 2) : '' }}</td>
-                    <td class="r">{{ $row['type'] === 'out' ? number_format($row['qty'], 2) : '' }}</td>
-                    <td class="r">{{ number_format($row['balance'], 2) }}</td>
+                    <td class="r">{{ $row['type'] === 'in' ? $fmt($row['qty']) : '' }}</td>
+                    <td class="r">{{ $row['type'] === 'out' ? $fmt($row['qty']) : '' }}</td>
+                    <td>{{ $row['type'] === 'out' ? $row['party'] : '' }}</td>
+                    <td class="r">{{ $fmt($row['balance']) }}</td>
+                    <td></td>
                 </tr>
-            @empty
-                <tr><td colspan="7" class="c muted" style="height:24px">No transactions recorded for this item.</td></tr>
-            @endforelse
+            @endforeach
+
+            @for ($i = 0; $i < $blanks; $i++)
+                <tr>
+                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                </tr>
+            @endfor
         </tbody>
     </table>
-
-    <div class="foot">
-        Generated {{ now()->format('F d, Y g:i A') }} &nbsp;·&nbsp; CPSU Common Supply Management System
-    </div>
 </body>
 </html>
