@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', config('app.name'))</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%230B6E2E' stroke='%23FFD500' stroke-width='2'/><text x='16' y='21' font-size='11' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>CS</text></svg>">
+<link rel="apple-touch-icon" href="{{ asset('images/cpsu-logo.png') }}">
+<meta name="theme-color" content="#0B6E2E">
+<meta name="description" content="CPSU Common Supply Management System">
+<meta name="robots" content="noindex">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<link rel="preconnect" href="https://cdn.tailwindcss.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdn.datatables.net">
+<link rel="preconnect" href="https://code.jquery.com">
+<link rel="preconnect" href="https://unpkg.com">
 
 {{-- Tailwind CDN with CPSU palette. For production this would be compiled;
      CDN keeps the XAMPP dev setup zero-build. --}}

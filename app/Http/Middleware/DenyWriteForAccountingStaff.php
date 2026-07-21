@@ -18,11 +18,13 @@ class DenyWriteForAccountingStaff
     {
         $user = $request->user();
 
-        if ($user
-            && $user->isAccountingStaff()
-            && in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
-        ) {
-            abort(403, 'Accounting Staff has view-only access.');
+        if ($user && $user->isAccountingStaff()) {
+            $isWriteVerb = in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+            $isCreateForm = $request->route() && str_ends_with((string) $request->route()->getName(), '.create');
+
+            if ($isWriteVerb || $isCreateForm) {
+                abort(403, 'Accounting Staff has view-only access.');
+            }
         }
 
         return $next($request);

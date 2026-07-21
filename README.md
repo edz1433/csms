@@ -1,66 +1,82 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CPSU Common Supply Management System (CSMS)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A supply/inventory management system for **Central Philippines State University** — receiving (deliveries), releasing (RIS), stock tracking, RCA/account-title expense attribution, and payment status tracking.
 
-## About Laravel
+**Stack:** Laravel 12 · Blade · Tailwind CSS · Alpine.js · DataTables (yajra, server-side) · SweetAlert2 · Chart.js · Tom Select — **no frontend framework** (all views are Blade, progressively enhanced).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.2+
+- MySQL (XAMPP) — database `cpsu_csms`
+- Composer
 
-## Learning Laravel
+## Setup
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```bash
+# 1. Install PHP dependencies
+composer install
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+# 2. Environment (already configured for XAMPP MySQL: db cpsu_csms, user root)
+#    Confirm APP_KEY is set; if not:
+php artisan key:generate
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# 3. Create the database (once)
+#    In phpMyAdmin or CLI: CREATE DATABASE cpsu_csms;
 
-## Laravel Sponsors
+# 4. Migrate + seed reference data and demo users
+php artisan migrate --seed
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# 5. Serve
+php artisan serve
+#    -> http://127.0.0.1:8000   (or via XAMPP: http://localhost/csms/public)
+```
 
-### Premium Partners
+> Front-end libraries load from CDN — **no `npm` build step required**.
+> Drop the official seal at `public/images/cpsu-logo.png` (falls back gracefully if absent).
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+## Demo accounts
 
-## Contributing
+| Role | Email | Password |
+|---|---|---|
+| Administrator | `admin@cpsu.edu.ph` | `password` |
+| Supply Staff | `supply@cpsu.edu.ph` | `password` |
+| Accounting Staff | `accounting@cpsu.edu.ph` | `password` |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Roles & access
 
-## Code of Conduct
+- **Administrator** — full access to everything, incl. Item CRUD and User Management.
+- **Supply Staff** — page access controlled per-user (Receiving, Releasing, Setup, etc.).
+- **Accounting Staff** — **view-only everywhere**, with one write exception: marking
+  released line items **Paid/Unpaid**.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Page access is a per-user checkbox list (`config/access.php` is the source of truth),
+enforced by the `CheckPageAccess` middleware and reflected in the sidebar. Accounting
+writes are blocked by `DenyWriteForAccountingStaff` except the payment-toggle endpoint.
 
-## Security Vulnerabilities
+## Modules
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Module | Notes |
+|---|---|
+| **Dashboard** | KPI cards (animated), lowest stock, recent releases |
+| **Items / Stocks** | Master list + per-item stock card (running balance); item CRUD is admin-only |
+| **Receiving** | PO-based delivery entry, multi-line, increments on-hand under row lock |
+| **Releasing** | RIS entry with stock guard, RCA snapshot, `{YEAR}-{MONTH}-{LOCATION_CODE}-{SEQ}` numbering, payment toggle |
+| **Setup** | Locations (campus/office), Units, Fund Clusters, Account Titles, Suppliers |
+| **Reports** | Releases summary (charts), stock card, payment status — CSV + PDF export |
+| **User Management** | Accounts, roles, per-page access, password reset (admin-only) |
 
-## License
+## Key data-integrity guarantees
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- Every stock-changing transaction (Receiving/Releasing) runs in a **DB transaction**
+  with `lockForUpdate()` on the item row — no lost updates or oversells under concurrency.
+- Releases re-check stock authoritatively server-side and **roll back entirely** if any
+  line is short (never a partial release).
+- `release_items.rca_code` is a **snapshot** taken at release time — historical records
+  never change if an Account Title's RCA code is later edited.
+- RIS sequence is per-location via a locked counter table (`location_release_counters`).
+
+---
+
+_Built as a phased enhancement per the CPSU CSMS build spec._
