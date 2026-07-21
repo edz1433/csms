@@ -58,6 +58,7 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
 
     Route::middleware('page:items')->group(function () {
         Route::get('/items', [ItemController::class, 'index'])->name('items.index');
+        Route::get('/items/{item}/pdf', [ItemController::class, 'pdf'])->name('items.pdf');
         Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
 
         // Item CRUD is Administrator-only.

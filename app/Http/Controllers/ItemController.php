@@ -83,20 +83,81 @@ class ItemController extends Controller
                 'link' => route('releases.show', $ri->release_id),
             ]);
 
-        // Merge, sort chronologically, and compute running balance.
-        $timeline = $deliveries->concat($releases)
-            ->sortBy('date')
-            ->values();
+        $timeline = $this->timeline($item); // newest first for display
 
-        $balance = 0;
-        $timeline = $timeline->map(function ($row) use (&$balance) {
+        return view('inventory.show', compact('item', 'timeline'));
+    }
+
+    /** Stock card as a CPSU-letterhead PDF (opens inline / in a new tab). */
+    public function pdf(Item $item)
+    {
+        $item->load(['unit', 'accountTitle']);
+
+        $timeline = $this->timeline($item, chronological: true); // oldest first (ledger)
+
+        $headerPath = public_path('images/cpsu-letterhead.png');
+        $header = is_file($headerPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($headerPath))
+            : null;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('inventory.pdf', [
+            'item' => $item,
+            'timeline' => $timeline,
+            'header' => $header,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream('StockCard-'.($item->stock_number ?? $item->id).'.pdf');
+    }
+
+    /**
+     * Combined in/out transaction timeline with a running balance.
+     * Default is newest-first; pass chronological: true for oldest-first (ledger).
+     */
+    private function timeline(Item $item, bool $chronological = false)
+    {
+        $deliveries = $item->deliveryItems()
+            ->with(['delivery.supplier', 'unit'])
+            ->get()
+            ->map(fn ($di) => [
+                'type' => 'in',
+                'date' => $di->delivery->received_at,
+                'ref' => $di->delivery->po_number,
+                'party' => $di->delivery->supplier?->name,
+                'qty' => (float) $di->quantity,
+                'unit' => $di->unit?->abbreviation,
+                'rca' => null,
+                'link' => route('deliveries.show', $di->delivery_id),
+            ]);
+
+        $releases = $item->releaseItems()
+            ->with(['release.location', 'unit'])
+            ->get()
+            ->map(fn ($ri) => [
+                'type' => 'out',
+                'date' => $ri->release->released_at,
+                'ref' => $ri->release->ris_number,
+                'party' => $ri->release->location?->name,
+                'qty' => (float) $ri->quantity,
+                'unit' => $ri->unit?->abbreviation,
+                'rca' => $ri->rca_code,
+                'link' => route('releases.show', $ri->release_id),
+            ]);
+
+        $rows = $deliveries->concat($releases)->sortBy('date')->values();
+
+        // Seed with an opening balance so the ledger reconciles to the current
+        // on-hand qty (initial/seeded stock isn't recorded as a delivery).
+        $netMovement = $deliveries->sum('qty') - $releases->sum('qty');
+        $balance = (float) $item->on_hand_qty - $netMovement;
+
+        $rows = $rows->map(function ($row) use (&$balance) {
             $balance += $row['type'] === 'in' ? $row['qty'] : -$row['qty'];
             $row['balance'] = $balance;
 
             return $row;
-        })->reverse()->values(); // newest first for display
+        });
 
-        return view('inventory.show', compact('item', 'timeline'));
+        return $chronological ? $rows : $rows->reverse()->values();
     }
 
     public function store(Request $request)
