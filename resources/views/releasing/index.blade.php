@@ -12,10 +12,8 @@
     </x-action-guard>
 </div>
 
-<div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4" data-aos="fade-up">
-    <div class="overflow-x-auto">
-        <table id="releases-table" class="w-full text-sm"></table>
-    </div>
+<div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5" data-aos="fade-up">
+    <table id="releases-table" class="w-full text-sm"></table>
 </div>
 
 @push('scripts')

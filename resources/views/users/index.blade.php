@@ -18,10 +18,8 @@
         <x-ui.button variant="primary" icon="user-plus" onclick="window.openCreate('users')">New User</x-ui.button>
     </div>
 
-    <div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4" data-aos="fade-up">
-        <div class="overflow-x-auto">
-            <table id="users-table" class="w-full text-sm"></table>
-        </div>
+    <div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5" data-aos="fade-up">
+        <table id="users-table" class="w-full text-sm"></table>
     </div>
 
     {{-- Create / Edit modal --}}

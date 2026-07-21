@@ -53,8 +53,8 @@
     </div>
 </div>
 
-<div class="bg-white rounded-xl border border-cpsu-border shadow-sm overflow-x-auto" data-aos="fade-up">
-    <table class="w-full text-sm">
+<div class="bg-white rounded-xl border border-cpsu-border shadow-sm" data-aos="fade-up">
+    <table class="w-full text-sm cpsu-table">
         <thead>
             <tr class="text-left text-xs uppercase text-gray-500 bg-cpsu-bg">
                 <th class="px-4 py-3">PO Number</th>

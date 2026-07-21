@@ -43,8 +43,8 @@
                 <p class="text-2xl font-extrabold text-cpsu-green">{{ number_format($item->on_hand_qty, 2) }}</p>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+        <div>
+            <table class="w-full text-sm cpsu-table">
                 <thead>
                     <tr class="text-left text-xs uppercase text-gray-500 bg-cpsu-bg">
                         <th class="px-4 py-2">Date</th>

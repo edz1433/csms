@@ -21,6 +21,44 @@
                 @endif
             </div>
             @yield('toolbar')
+
+            {{-- User menu (upper-right) with Sign out --}}
+            <div x-data="{ open: false }" class="relative shrink-0">
+                <button @click="open = !open" @click.outside="open = false"
+                        class="flex items-center gap-2 rounded-lg pl-1.5 pr-2 py-1.5 hover:bg-cpsu-bg transition active:scale-95">
+                    <span class="h-8 w-8 rounded-full bg-cpsu-green text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+                    </span>
+                    <span class="hidden sm:block text-left leading-tight max-w-[10rem]">
+                        <span class="block text-sm font-semibold text-cpsu-black truncate">{{ auth()->user()->name }}</span>
+                        <span class="block text-[11px] text-gray-400 capitalize truncate">{{ str_replace('_', ' ', auth()->user()->role) }}</span>
+                    </span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'"></i>
+                </button>
+
+                <div x-show="open" x-cloak
+                     x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0 -translate-y-1 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave="transition ease-in duration-100"
+                     x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                     class="absolute right-0 mt-2 w-60 bg-white rounded-xl border border-cpsu-border shadow-lg overflow-hidden z-50">
+                    <div class="px-4 py-3 border-b border-cpsu-border">
+                        <p class="text-sm font-semibold text-cpsu-black truncate">{{ auth()->user()->name }}</p>
+                        <p class="text-xs text-gray-400 truncate">{{ auth()->user()->email }}</p>
+                        <span class="inline-flex mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cpsu-green/10 text-cpsu-green capitalize">
+                            {{ str_replace('_', ' ', auth()->user()->role) }}
+                        </span>
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit"
+                                class="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-cpsu-danger hover:bg-red-50 transition text-left">
+                            <i data-lucide="log-out" class="w-4 h-4"></i> Sign out
+                        </button>
+                    </form>
+                </div>
+            </div>
         </header>
 
         {{-- Flash messages --}}

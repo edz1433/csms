@@ -41,10 +41,12 @@
   };
 </script>
 
-{{-- jQuery + DataTables (server-side lists) --}}
+{{-- jQuery + DataTables (server-side lists) + Responsive (no horizontal scroll) --}}
 <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
 <link rel="stylesheet" href="{{ asset('vendor/datatables/dataTables.tailwindcss.min.css') }}">
+<link rel="stylesheet" href="{{ asset('vendor/datatables/responsive.dataTables.min.css') }}">
 <script src="{{ asset('vendor/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('vendor/datatables/dataTables.responsive.min.js') }}"></script>
 
 {{-- SweetAlert2 (themed confirms + toasts) --}}
 <script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
@@ -88,32 +90,76 @@
   body { background: var(--cpsu-gray-bg); color: var(--cpsu-black); font-family: 'Inter', system-ui, sans-serif; }
   [x-cloak] { display: none !important; }
 
-  /* DataTables Tailwind restyle so it doesn't look like stock jQuery */
+  /* ---- Modern DataTables restyle (rounded, airy, no horizontal scroll) ---- */
+  .dataTables_wrapper { position: relative; }
   .dataTables_wrapper .dataTables_filter input,
   .dataTables_wrapper .dataTables_length select {
-    border: 1px solid var(--cpsu-border); border-radius: 0.5rem;
-    padding: 0.4rem 0.7rem; outline: none; background: #fff;
+    border: 1px solid var(--cpsu-border); border-radius: 0.6rem;
+    padding: 0.5rem 0.8rem; outline: none; background: #fff; font-size: .875rem;
+    transition: border-color .15s, box-shadow .15s;
   }
+  .dataTables_wrapper .dataTables_filter input { min-width: 220px; }
   .dataTables_wrapper .dataTables_filter input:focus,
   .dataTables_wrapper .dataTables_length select:focus {
     border-color: var(--cpsu-green); box-shadow: 0 0 0 3px rgba(11,110,46,.12);
   }
+  .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_length { margin-bottom: .75rem; }
+  .dataTables_wrapper .dataTables_info { color: #8a978c; font-size: .8rem; padding-top: 1rem; }
+
+  /* table shell — no fixed layout, wraps instead of overflowing */
+  table.dataTable { width: 100% !important; border-collapse: separate !important; border-spacing: 0; }
   table.dataTable thead th {
-    background: var(--cpsu-gray-bg); color: #3b4a3e; font-weight: 600;
-    text-transform: uppercase; font-size: .7rem; letter-spacing: .03em;
-    border-bottom: 1px solid var(--cpsu-border) !important;
+    background: transparent; color: #6b7a6f; font-weight: 600;
+    text-transform: uppercase; font-size: .68rem; letter-spacing: .04em;
+    padding: .55rem .85rem !important; border: 0 !important;
+    border-bottom: 1.5px solid var(--cpsu-border) !important;
   }
+  table.dataTable tbody td {
+    padding: .7rem .85rem !important; vertical-align: middle;
+    border: 0 !important; border-bottom: 1px solid #f0f2ee !important;
+    font-size: .875rem; word-break: break-word;
+  }
+  table.dataTable tbody tr { transition: background-color .12s; }
   table.dataTable tbody tr:hover { background: var(--cpsu-gray-bg); }
-  table.dataTable tbody td { border-bottom: 1px solid #f0f2ee; vertical-align: middle; }
+  table.dataTable tbody tr:last-child td { border-bottom: 0 !important; }
+  table.dataTable.no-footer { border-bottom: 0 !important; }
+
+  /* pagination pills */
+  .dataTables_wrapper .dataTables_paginate { padding-top: .85rem; }
+  .dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: .55rem !important; margin: 0 2px; padding: .35rem .75rem !important;
+    border: 1px solid transparent !important; color: #55635a !important;
+  }
   .dataTables_wrapper .dataTables_paginate .paginate_button.current,
   .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
     background: var(--cpsu-green) !important; color: #fff !important;
-    border-radius: 0.5rem; border-color: var(--cpsu-green) !important;
+    border-color: var(--cpsu-green) !important; box-shadow: 0 2px 6px rgba(11,110,46,.25);
   }
   .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background: var(--cpsu-gray-bg) !important; border-radius: 0.5rem;
-    border-color: var(--cpsu-border) !important; color: var(--cpsu-green) !important;
+    background: var(--cpsu-gray-bg) !important; border-color: var(--cpsu-border) !important;
+    color: var(--cpsu-green) !important;
   }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { opacity: .4; }
+
+  /* Responsive extension — expandable child rows replace horizontal scroll */
+  table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control:first-child { padding-left: 2rem; }
+  table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control:first-child:before {
+    top: 50%; left: .6rem; transform: translateY(-50%);
+    height: 1.05rem; width: 1.05rem; line-height: 1rem; font-size: .8rem;
+    border-radius: .35rem; background: var(--cpsu-green); border: 0; box-shadow: none;
+    color: #fff; content: '+'; display: inline-flex; align-items: center; justify-content: center;
+  }
+  table.dataTable.dtr-inline.collapsed > tbody > tr.parent > td.dtr-control:first-child:before { background: var(--cpsu-danger); content: '-'; }
+  table.dataTable > tbody > tr.child ul.dtr-details { width: 100%; }
+  table.dataTable > tbody > tr.child ul.dtr-details > li {
+    border-bottom: 1px solid #f0f2ee; padding: .45rem 0; display: flex; gap: .5rem;
+  }
+  table.dataTable > tbody > tr.child .dtr-title { min-width: 8rem; font-weight: 600; color: #6b7a6f; font-size: .75rem; text-transform: uppercase; }
+  table.dataTable > tbody > tr.child { background: var(--cpsu-gray-bg); }
+
+  /* Static (non-DataTable) tables: wrap content, never force horizontal scroll */
+  .cpsu-table { width: 100%; table-layout: auto; }
+  .cpsu-table td, .cpsu-table th { word-break: break-word; overflow-wrap: anywhere; }
 
   /* Tom Select on-brand focus */
   .ts-control { border-radius: .5rem !important; border-color: var(--cpsu-border) !important; padding: .4rem .6rem !important; }
@@ -165,7 +211,14 @@
   window.CPSU.dataTable = function (selector, ajaxUrl, columns, opts) {
     opts = opts || {};
     return $(selector).DataTable(Object.assign({
-      processing: true, serverSide: true, responsive: true,
+      processing: true, serverSide: true,
+      responsive: { details: { type: 'column', target: 'tr' } },
+      autoWidth: false,
+      // keep the first column + the last (actions) visible longest; collapse the middle first
+      columnDefs: [
+        { responsivePriority: 1, targets: 0 },
+        { responsivePriority: 2, targets: -1 },
+      ],
       ajax: ajaxUrl, columns: columns,
       order: opts.order || [[0, 'asc']],
       pageLength: opts.pageLength || 10,

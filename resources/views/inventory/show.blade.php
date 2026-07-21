@@ -53,8 +53,8 @@
         <h3 class="font-bold text-sm">Transaction History</h3>
         <span class="text-xs text-gray-400">(receiving in / releasing out — newest first)</span>
     </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+    <div>
+        <table class="w-full text-sm cpsu-table">
             <thead>
                 <tr class="text-left text-xs uppercase text-gray-500 bg-cpsu-bg">
                     <th class="px-5 py-3">Date</th>

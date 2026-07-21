@@ -74,7 +74,7 @@
         </div>
 
         {{-- Rows --}}
-        <div class="overflow-x-auto">
+        <div>
             <table class="w-full text-sm">
                 <thead x-show="form.lines.length">
                     <tr class="text-left text-xs uppercase text-gray-500 bg-cpsu-bg">

@@ -53,9 +53,9 @@
         @endforeach
     </nav>
 
-    {{-- User footer --}}
+    {{-- Footer identity (sign out lives in the top-right user menu) --}}
     <div class="border-t border-white/10 p-3">
-        <div class="flex items-center gap-3 px-2 py-2">
+        <div class="flex items-center gap-3 px-2 py-1.5">
             <div class="h-9 w-9 rounded-full bg-cpsu-gold text-cpsu-black flex items-center justify-center font-bold text-sm shrink-0">
                 {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
             </div>
@@ -64,13 +64,6 @@
                 <div class="text-[11px] text-white/60 capitalize">{{ str_replace('_', ' ', $role ?? '') }}</div>
             </div>
         </div>
-        <form method="POST" action="{{ route('logout') }}" class="mt-1">
-            @csrf
-            <button type="submit"
-                    class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-all active:scale-95">
-                <i data-lucide="log-out" class="w-[18px] h-[18px]"></i> Sign out
-            </button>
-        </form>
     </div>
 </aside>
 
