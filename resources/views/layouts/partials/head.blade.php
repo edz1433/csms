@@ -113,6 +113,12 @@
 
   /* Badge cross-fade for payment status toggle */
   .badge-fade { transition: background-color .35s ease, color .35s ease, border-color .35s ease; }
+
+  /* DataTables skeleton loader (shown while AJAX in flight) */
+  div.dataTables_processing.card { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+  .cpsu-skeleton { display: grid; gap: .5rem; padding: .5rem 0; }
+  .cpsu-skeleton > div { height: 2.25rem; border-radius: .5rem; background: linear-gradient(90deg,#eef1ec 25%,#f6f8f4 37%,#eef1ec 63%); background-size: 400% 100%; animation: cpsu-shimmer 1.2s ease infinite; }
+  @keyframes cpsu-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 </style>
 
 {{-- Global JS init: SweetAlert2 CPSU theme + toast helper --}}
@@ -146,6 +152,108 @@
   // csrf for all jQuery/fetch calls
   window.CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   $.ajaxSetup && $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': window.CSRF } });
+
+  // Server-side DataTable factory with CPSU chrome + skeleton loader.
+  window.CPSU.dataTable = function (selector, ajaxUrl, columns, opts) {
+    opts = opts || {};
+    return $(selector).DataTable(Object.assign({
+      processing: true, serverSide: true, responsive: true,
+      ajax: ajaxUrl, columns: columns,
+      order: opts.order || [[0, 'asc']],
+      pageLength: opts.pageLength || 10,
+      lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+      language: {
+        search: '', searchPlaceholder: 'Search…',
+        processing: '<div class="cpsu-skeleton"><div></div><div></div><div></div><div></div></div>',
+        emptyTable: 'No records found.', zeroRecords: 'No matching records.',
+      },
+      drawCallback: function () { window.lucide && lucide.createIcons(); },
+    }, opts.overrides || {}));
+  };
+
+  // Registry of DataTable reload fns, keyed by resource, so AJAX writes can
+  // refresh their table without a full page reload.
+  window.reloadTable = {};
+
+  // Themed delete: SweetAlert2 confirm -> AJAX DELETE -> reload table.
+  window.CPSU.deleteResource = function (url, label, resource) {
+    CPSU.confirm({
+      title: 'Delete ' + (label || 'record') + '?',
+      text: 'This action cannot be undone.',
+      confirmText: 'Yes, delete',
+    }).then(function (r) {
+      if (!r.isConfirmed) return;
+      $.ajax({ url: url, method: 'POST', data: { _method: 'DELETE' } })
+        .done(function () {
+          CPSU.toast((label ? label.charAt(0).toUpperCase() + label.slice(1) : 'Record') + ' deleted', 'success');
+          if (resource && window.reloadTable[resource]) window.reloadTable[resource]();
+        })
+        .fail(function (xhr) {
+          CPSU.toast((xhr.responseJSON && xhr.responseJSON.message) || 'Could not delete record', 'error');
+        });
+    });
+  };
+
+  // Inline is_active toggle (AJAX PATCH, no reload).
+  window.CPSU.toggleActive = function (url, el) {
+    var on = el.getAttribute('aria-checked') === 'true';
+    $.ajax({ url: url, method: 'PATCH', data: { is_active: on ? 0 : 1 } })
+      .done(function () {
+        el.setAttribute('aria-checked', on ? 'false' : 'true');
+        el.classList.toggle('bg-cpsu-green', !on);
+        el.classList.toggle('bg-gray-300', on);
+        el.querySelector('span').classList.toggle('translate-x-5', !on);
+        CPSU.toast('Status updated', 'success');
+      })
+      .fail(function () { CPSU.toast('Could not update status', 'error'); });
+  };
+
+  // Open a resource form modal in create/edit mode. Page-level Alpine forms
+  // listen for 'resource-create' / 'resource-edit' to (re)populate fields.
+  window.openCreate = function (resource) {
+    window.dispatchEvent(new CustomEvent('resource-create', { detail: { resource: resource } }));
+    window.dispatchEvent(new CustomEvent('open-modal', { detail: resource + '-form' }));
+  };
+  window.openEdit = function (resource, data) {
+    window.dispatchEvent(new CustomEvent('resource-edit', { detail: { resource: resource, data: data } }));
+    window.dispatchEvent(new CustomEvent('open-modal', { detail: resource + '-form' }));
+  };
+
+  // Alpine factory powering every setup CRUD modal form (create/edit + AJAX submit).
+  window.setupForm = function (cfg) {
+    return {
+      mode: 'create', modalTitle: '', submitting: false,
+      form: JSON.parse(JSON.stringify(cfg.blank)),
+      errors: {},
+      init() {
+        var self = this;
+        window.addEventListener('resource-create', function (e) { if (e.detail.resource === cfg.resource) self.startCreate(); });
+        window.addEventListener('resource-edit', function (e) { if (e.detail.resource === cfg.resource) self.startEdit(e.detail.data); });
+      },
+      startCreate() { this.mode = 'create'; this.form = JSON.parse(JSON.stringify(cfg.blank)); this.errors = {}; this.modalTitle = 'New ' + cfg.singular; },
+      startEdit(data) { this.mode = 'edit'; this.form = Object.assign(JSON.parse(JSON.stringify(cfg.blank)), data); this.errors = {}; this.modalTitle = 'Edit ' + cfg.singular; },
+      err(field) { return this.errors[field] ? this.errors[field][0] : ''; },
+      async submit() {
+        this.submitting = true; this.errors = {};
+        var url = this.mode === 'create' ? cfg.storeUrl : cfg.updateUrl.replace('__ID__', this.form.id);
+        var payload = Object.assign({}, this.form);
+        if (this.mode === 'edit') payload._method = 'PUT';
+        try {
+          var res = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(payload),
+          });
+          if (res.status === 422) { var j = await res.json(); this.errors = j.errors || {}; this.submitting = false; return; }
+          if (!res.ok) { var j2 = await res.json().catch(function () { return {}; }); CPSU.toast(j2.message || 'Something went wrong', 'error'); this.submitting = false; return; }
+          window.dispatchEvent(new CustomEvent('close-modal', { detail: cfg.resource + '-form' }));
+          if (window.reloadTable[cfg.resource]) window.reloadTable[cfg.resource]();
+          CPSU.toast(cfg.singular + (this.mode === 'create' ? ' created' : ' updated'), 'success');
+        } catch (e) { CPSU.toast('Network error', 'error'); }
+        this.submitting = false;
+      },
+    };
+  };
 
   document.addEventListener('DOMContentLoaded', () => {
     if (window.lucide) lucide.createIcons();

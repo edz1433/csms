@@ -2,6 +2,11 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Setup\AccountTitleController;
+use App\Http\Controllers\Setup\FundClusterController;
+use App\Http\Controllers\Setup\LocationController;
+use App\Http\Controllers\Setup\SupplierController;
+use App\Http\Controllers\Setup\UnitController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -41,5 +46,44 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('page:dashboard')->name('dashboard');
 
-    // Module route groups are appended below per build phase.
+    /* ---- Setup: Reference data (Phase 3) ---- */
+
+    Route::middleware('page:locations')->group(function () {
+        Route::get('/locations', [LocationController::class, 'index'])->name('locations.index');
+        Route::post('/locations', [LocationController::class, 'store'])->name('locations.store');
+        Route::put('/locations/{location}', [LocationController::class, 'update'])->name('locations.update');
+        Route::delete('/locations/{location}', [LocationController::class, 'destroy'])->name('locations.destroy');
+        Route::patch('/locations/{location}/toggle', [LocationController::class, 'toggle'])->name('locations.toggle');
+    });
+
+    Route::middleware('page:units')->group(function () {
+        Route::get('/units', [UnitController::class, 'index'])->name('units.index');
+        Route::post('/units', [UnitController::class, 'store'])->name('units.store');
+        Route::put('/units/{unit}', [UnitController::class, 'update'])->name('units.update');
+        Route::delete('/units/{unit}', [UnitController::class, 'destroy'])->name('units.destroy');
+    });
+
+    Route::middleware('page:fund_clusters')->group(function () {
+        Route::get('/fund-clusters', [FundClusterController::class, 'index'])->name('fund-clusters.index');
+        Route::post('/fund-clusters', [FundClusterController::class, 'store'])->name('fund-clusters.store');
+        Route::put('/fund-clusters/{fundCluster}', [FundClusterController::class, 'update'])->name('fund-clusters.update');
+        Route::delete('/fund-clusters/{fundCluster}', [FundClusterController::class, 'destroy'])->name('fund-clusters.destroy');
+        Route::patch('/fund-clusters/{fundCluster}/toggle', [FundClusterController::class, 'toggle'])->name('fund-clusters.toggle');
+    });
+
+    Route::middleware('page:account_titles')->group(function () {
+        Route::get('/account-titles', [AccountTitleController::class, 'index'])->name('account-titles.index');
+        Route::post('/account-titles', [AccountTitleController::class, 'store'])->name('account-titles.store');
+        Route::put('/account-titles/{accountTitle}', [AccountTitleController::class, 'update'])->name('account-titles.update');
+        Route::delete('/account-titles/{accountTitle}', [AccountTitleController::class, 'destroy'])->name('account-titles.destroy');
+        Route::patch('/account-titles/{accountTitle}/toggle', [AccountTitleController::class, 'toggle'])->name('account-titles.toggle');
+    });
+
+    Route::middleware('page:suppliers')->group(function () {
+        Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+        Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+        Route::put('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
+        Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
+        Route::patch('/suppliers/{supplier}/toggle', [SupplierController::class, 'toggle'])->name('suppliers.toggle');
+    });
 });
