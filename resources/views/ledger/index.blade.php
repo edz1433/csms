@@ -12,7 +12,7 @@
      })">
 
     {{-- Filter form (single row: item · date range · generate) --}}
-    <div class="relative z-30 bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5 mb-4" data-aos="fade-up">
+    <div class="relative z-20 bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5 mb-4" data-aos="fade-up">
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
             <div class="sm:col-span-6">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Item</label>

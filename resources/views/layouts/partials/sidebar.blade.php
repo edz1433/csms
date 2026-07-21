@@ -23,7 +23,7 @@
 
 <aside
     x-data="{ open: false }"
-    class="fixed inset-y-0 left-0 z-40 w-64 bg-cpsu-green text-white flex flex-col transform transition-transform duration-200 lg:translate-x-0"
+    class="fixed inset-y-0 left-0 z-50 w-64 bg-cpsu-green text-white flex flex-col transform transition-transform duration-200 lg:translate-x-0"
     :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
     @toggle-sidebar.window="open = !open"
     @keydown.escape.window="open = false"
@@ -73,4 +73,4 @@
      x-show="open" x-cloak @click="$dispatch('toggle-sidebar')"
      x-transition:enter="transition-opacity duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
      x-transition:leave="transition-opacity duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-     class="fixed inset-0 z-30 bg-black/40 lg:hidden"></div>
+     class="fixed inset-0 z-40 bg-black/40 lg:hidden"></div>

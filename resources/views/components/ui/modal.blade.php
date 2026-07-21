@@ -8,7 +8,7 @@
     @open-modal.window="if ($event.detail === '{{ $name }}') show = true"
     @close-modal.window="if ($event.detail === '{{ $name }}' || $event.detail === undefined) show = false"
     @keydown.escape.window="show = false"
-    class="fixed inset-0 z-50 overflow-y-auto"
+    class="fixed inset-0 z-[60] overflow-y-auto"
     aria-modal="true" role="dialog"
 >
     {{-- backdrop --}}
