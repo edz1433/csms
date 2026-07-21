@@ -11,15 +11,11 @@
 <meta name="description" content="CPSU Common Supply Management System">
 <meta name="robots" content="noindex">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<link rel="preconnect" href="https://cdn.tailwindcss.com">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="preconnect" href="https://cdn.datatables.net">
-<link rel="preconnect" href="https://code.jquery.com">
-<link rel="preconnect" href="https://unpkg.com">
+{{-- All front-end libraries are self-hosted under public/vendor so the system
+     works with NO internet connection. No npm build step required. --}}
 
-{{-- Tailwind CDN with CPSU palette. For production this would be compiled;
-     CDN keeps the XAMPP dev setup zero-build. --}}
-<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+{{-- Tailwind (self-hosted Play build) with CPSU palette --}}
+<script src="{{ asset('vendor/tailwind/tailwind.js') }}"></script>
 <script>
   tailwind.config = {
     theme: {
@@ -45,42 +41,43 @@
   };
 </script>
 
-{{-- Inter font --}}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
 {{-- jQuery + DataTables (server-side lists) --}}
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.tailwindcss.min.css">
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.tailwindcss.min.js"></script>
+<script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+<link rel="stylesheet" href="{{ asset('vendor/datatables/dataTables.tailwindcss.min.css') }}">
+<script src="{{ asset('vendor/datatables/jquery.dataTables.min.js') }}"></script>
 
 {{-- SweetAlert2 (themed confirms + toasts) --}}
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
 
 {{-- AOS (scroll reveals) --}}
-<link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
-<script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+<link href="{{ asset('vendor/aos/aos.css') }}" rel="stylesheet">
+<script src="{{ asset('vendor/aos/aos.js') }}"></script>
 
 {{-- CountUp.js (dashboard KPI animation) --}}
-<script src="https://cdn.jsdelivr.net/npm/countup.js@2.8.0/dist/countUp.umd.js"></script>
+<script src="{{ asset('vendor/countup/countUp.umd.js') }}"></script>
 
 {{-- Chart.js (reports) --}}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 
 {{-- Tom Select (searchable item/supplier selects) --}}
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<link href="{{ asset('vendor/tom-select/tom-select.min.css') }}" rel="stylesheet">
+<script src="{{ asset('vendor/tom-select/tom-select.complete.min.js') }}"></script>
 
 {{-- Lucide icons (framework-agnostic SVGs) --}}
-<script src="https://unpkg.com/lucide@0.462.0/dist/umd/lucide.min.js"></script>
+<script src="{{ asset('vendor/lucide/lucide.min.js') }}"></script>
 
 {{-- Alpine.js — loaded LAST + deferred so all data helpers are defined first --}}
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.7/dist/cdn.min.js"></script>
+<script defer src="{{ asset('vendor/alpine/alpine.min.js') }}"></script>
 
 {{-- CPSU theme layer: brand chrome, DataTables restyle, motion primitives --}}
 <style>
+  /* Self-hosted Inter — no Google Fonts dependency (works offline) */
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:400; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-400.woff2') }}') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:500; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-500.woff2') }}') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-600.woff2') }}') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-700.woff2') }}') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-800.woff2') }}') format('woff2'); }
+
   :root {
     --cpsu-green: #0B6E2E; --cpsu-green-dark: #074A1F;
     --cpsu-gold: #FFD500;  --cpsu-gold-dark: #E6BF00;

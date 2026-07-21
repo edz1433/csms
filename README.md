@@ -33,7 +33,9 @@ php artisan serve
 #    -> http://127.0.0.1:8000   (or via XAMPP: http://localhost/csms/public)
 ```
 
-> Front-end libraries load from CDN — **no `npm` build step required**.
+> **Works fully offline** — all front-end libraries (Tailwind, Alpine, DataTables,
+> SweetAlert2, Chart.js, Tom Select, Lucide) and the Inter font are self-hosted under
+> `public/vendor/`. **No internet connection and no `npm` build step required.**
 > Drop the official seal at `public/images/cpsu-logo.png` (falls back gracefully if absent).
 
 ## Demo accounts

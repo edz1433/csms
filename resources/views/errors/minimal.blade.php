@@ -4,10 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('code') · CPSU CSMS</title>
-    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="{{ asset('vendor/tailwind/tailwind.js') }}"></script>
     <script>tailwind.config = { theme: { extend: { colors: { cpsu: { green: '#0B6E2E', 'green-dark': '#074A1F', gold: '#FFD500', bg: '#F7F8F5', border: '#E3E6DE' } } } } };</script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>body{font-family:Inter,system-ui,sans-serif}</style>
+    <style>
+      @font-face { font-family:'Inter'; font-weight:400; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-400.woff2') }}') format('woff2'); }
+      @font-face { font-family:'Inter'; font-weight:600; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-600.woff2') }}') format('woff2'); }
+      @font-face { font-family:'Inter'; font-weight:800; font-display:swap; src:url('{{ asset('vendor/fonts/inter/inter-800.woff2') }}') format('woff2'); }
+      body{font-family:Inter,system-ui,sans-serif}
+    </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6"
       style="background:radial-gradient(1000px 500px at 100% 0%, rgba(255,213,0,.10), transparent 60%),radial-gradient(900px 500px at 0% 100%, rgba(11,110,46,.12), transparent 55%),#F7F8F5;">
