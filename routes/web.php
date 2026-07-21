@@ -98,6 +98,13 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::patch('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     });
 
+    /* ---- Supply Ledger Card (Appendix 57) ---- */
+
+    Route::middleware('page:ledger')->group(function () {
+        Route::get('/ledger', [\App\Http\Controllers\LedgerController::class, 'index'])->name('ledger.index');
+        Route::get('/ledger/pdf', [\App\Http\Controllers\LedgerController::class, 'pdf'])->name('ledger.pdf');
+    });
+
     /* ---- Reports (Phase 7) ---- */
 
     Route::middleware('page:reports')->group(function () {

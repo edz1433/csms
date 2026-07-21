@@ -44,7 +44,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Supply Staff',
                 'password' => Hash::make('password'),
                 'role' => User::ROLE_SUPPLY,
-                'access' => ['dashboard', 'items', 'receiving', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'reports'],
+                'access' => ['dashboard', 'items', 'receiving', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'ledger', 'reports'],
                 'is_active' => true,
             ]
         );

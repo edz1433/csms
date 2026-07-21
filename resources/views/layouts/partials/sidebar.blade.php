@@ -15,6 +15,7 @@
         ['key' => 'units',          'route' => 'units.index',          'label' => 'Units',            'icon' => 'ruler'],
         ['key' => 'fund_clusters',  'route' => 'fund-clusters.index',  'label' => 'Fund Clusters',    'icon' => 'layers'],
         ['key' => 'account_titles', 'route' => 'account-titles.index', 'label' => 'Account Titles',   'icon' => 'book-open'],
+        ['key' => 'ledger',         'route' => 'ledger.index',         'label' => 'Supply Ledger',    'icon' => 'notebook-text'],
         ['key' => 'reports',        'route' => 'reports.index',        'label' => 'Reports',          'icon' => 'bar-chart-3'],
         ['key' => 'users',          'route' => 'users.index',          'label' => 'User Management',   'icon' => 'users'],
     ];
