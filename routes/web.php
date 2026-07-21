@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ItemController;
 use App\Http\Controllers\Setup\AccountTitleController;
 use App\Http\Controllers\Setup\FundClusterController;
 use App\Http\Controllers\Setup\LocationController;
@@ -45,6 +46,23 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('page:dashboard')->name('dashboard');
+
+    // Stock lookup — used by the Releasing form; any authenticated user.
+    Route::get('/items/{item}/stock', [ItemController::class, 'stock'])->name('items.stock');
+
+    /* ---- Inventory / Items (Phase 4) ---- */
+
+    Route::middleware('page:items')->group(function () {
+        Route::get('/items', [ItemController::class, 'index'])->name('items.index');
+        Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
+
+        // Item CRUD is Administrator-only.
+        Route::middleware('role:administrator')->group(function () {
+            Route::post('/items', [ItemController::class, 'store'])->name('items.store');
+            Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
+            Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
+        });
+    });
 
     /* ---- Setup: Reference data (Phase 3) ---- */
 

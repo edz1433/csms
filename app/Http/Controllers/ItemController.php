@@ -1,0 +1,154 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Concerns\ResourceResponses;
+use App\Models\AccountTitle;
+use App\Models\Item;
+use App\Models\Unit;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Yajra\DataTables\Facades\DataTables;
+
+class ItemController extends Controller
+{
+    use ResourceResponses;
+
+    public function index(Request $request)
+    {
+        if ($request->ajax()) {
+            $query = Item::query()->with(['unit', 'accountTitle']);
+
+            return DataTables::eloquent($query)
+                ->editColumn('stock_number', fn (Item $i) => $i->stock_number
+                    ? '<span class="font-mono text-xs">'.e($i->stock_number).'</span>'
+                    : '<span class="text-gray-300">—</span>')
+                ->addColumn('unit', fn (Item $i) => e($i->unit?->abbreviation ?? '—'))
+                ->addColumn('account', fn (Item $i) => $i->accountTitle
+                    ? e($i->accountTitle->name).' <span class="font-mono text-xs text-cpsu-green">'.e($i->accountTitle->rca_code).'</span>'
+                    : '<span class="text-gray-300">—</span>')
+                ->addColumn('on_hand', fn (Item $i) => '<span class="font-semibold '.($i->on_hand_qty <= 0 ? 'text-cpsu-danger' : 'text-cpsu-black').'">'.number_format($i->on_hand_qty, 2).'</span>')
+                ->addColumn('status', fn (Item $i) => $i->is_active
+                    ? '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cpsu-green/10 text-cpsu-green">Active</span>'
+                    : '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>')
+                ->addColumn('action', function (Item $i) {
+                    return view('inventory.partials.actions', [
+                        'item' => $i,
+                        'canWrite' => auth()->user()->isAdministrator(),
+                    ])->render();
+                })
+                ->filterColumn('unit', fn ($q, $kw) => $q->whereHas('unit', fn ($u) => $u->where('abbreviation', 'like', "%{$kw}%")->orWhere('name', 'like', "%{$kw}%")))
+                ->filterColumn('account', fn ($q, $kw) => $q->whereHas('accountTitle', fn ($a) => $a->where('name', 'like', "%{$kw}%")->orWhere('rca_code', 'like', "%{$kw}%")))
+                ->orderColumn('on_hand', 'on_hand_qty $1')
+                ->rawColumns(['stock_number', 'account', 'on_hand', 'status', 'action'])
+                ->toJson();
+        }
+
+        return view('inventory.index', [
+            'units' => Unit::orderBy('name')->pluck('abbreviation', 'id'),
+            'accountTitles' => AccountTitle::where('is_active', true)->orderBy('name')->get()
+                ->mapWithKeys(fn ($a) => [$a->id => $a->name.' — '.$a->rca_code]),
+        ]);
+    }
+
+    public function show(Item $item)
+    {
+        $item->load(['unit', 'accountTitle']);
+
+        // Combined in/out transaction timeline.
+        $deliveries = $item->deliveryItems()
+            ->with(['delivery.supplier', 'unit'])
+            ->get()
+            ->map(fn ($di) => [
+                'type' => 'in',
+                'date' => $di->delivery->received_at,
+                'ref' => $di->delivery->po_number,
+                'party' => $di->delivery->supplier?->name,
+                'qty' => (float) $di->quantity,
+                'unit' => $di->unit?->abbreviation,
+                'rca' => null,
+                'link' => route('deliveries.show', $di->delivery_id),
+            ]);
+
+        $releases = $item->releaseItems()
+            ->with(['release.location', 'unit'])
+            ->get()
+            ->map(fn ($ri) => [
+                'type' => 'out',
+                'date' => $ri->release->released_at,
+                'ref' => $ri->release->ris_number,
+                'party' => $ri->release->location?->name,
+                'qty' => (float) $ri->quantity,
+                'unit' => $ri->unit?->abbreviation,
+                'rca' => $ri->rca_code,
+                'link' => route('releases.show', $ri->release_id),
+            ]);
+
+        // Merge, sort chronologically, and compute running balance.
+        $timeline = $deliveries->concat($releases)
+            ->sortBy('date')
+            ->values();
+
+        $balance = 0;
+        $timeline = $timeline->map(function ($row) use (&$balance) {
+            $balance += $row['type'] === 'in' ? $row['qty'] : -$row['qty'];
+            $row['balance'] = $balance;
+
+            return $row;
+        })->reverse()->values(); // newest first for display
+
+        return view('inventory.show', compact('item', 'timeline'));
+    }
+
+    public function store(Request $request)
+    {
+        Item::create($this->validateData($request));
+
+        return $this->ok($request, 'Item created.');
+    }
+
+    public function update(Request $request, Item $item)
+    {
+        $item->update($this->validateData($request, $item->id));
+
+        return $this->ok($request, 'Item updated.');
+    }
+
+    public function destroy(Request $request, Item $item)
+    {
+        if ($item->deliveryItems()->exists() || $item->releaseItems()->exists()) {
+            return $this->fail($request, 'Cannot delete: this item has transaction history. Deactivate it instead.', 409);
+        }
+
+        $item->delete();
+
+        return $this->ok($request, 'Item deleted.');
+    }
+
+    /**
+     * Lightweight stock lookup used by the Releasing form (on-hand hint +
+     * default unit / account title on item select).
+     */
+    public function stock(Item $item)
+    {
+        return response()->json([
+            'id' => $item->id,
+            'on_hand_qty' => (float) $item->on_hand_qty,
+            'unit_id' => $item->unit_id,
+            'unit_abbr' => $item->unit?->abbreviation,
+            'account_title_id' => $item->account_title_id,
+        ]);
+    }
+
+    private function validateData(Request $request, ?int $id = null): array
+    {
+        return $request->validate([
+            'stock_number' => ['nullable', 'string', 'max:50', Rule::unique('items', 'stock_number')->ignore($id)],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'unit_id' => ['required', 'exists:units,id'],
+            'account_title_id' => ['nullable', 'exists:account_titles,id'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+    }
+}

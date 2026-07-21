@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'page' => \App\Http\Middleware\CheckPageAccess::class,
             'deny.accounting.write' => \App\Http\Middleware\DenyWriteForAccountingStaff::class,
+            'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -8,6 +8,8 @@
     'blank' => [],         // blank form object
     'order' => [[0, 'asc']],
     'tableId' => null,
+    'canWrite' => true,      // gates the "New" button (e.g. items = admin only)
+    'blurb' => null,
 ])
 
 @php $tableId = $tableId ?? ($resource.'-table'); @endphp
@@ -22,12 +24,14 @@
 
     {{-- Toolbar --}}
     <div class="flex items-center justify-between gap-3 mb-4">
-        <p class="text-sm text-gray-500 hidden sm:block">Manage {{ Str::lower(Str::plural($singular)) }} used across the system.</p>
-        <x-action-guard>
-            <x-ui.button variant="primary" icon="plus" onclick="window.openCreate('{{ $resource }}')">
-                New {{ $singular }}
-            </x-ui.button>
-        </x-action-guard>
+        <p class="text-sm text-gray-500 hidden sm:block">{{ $blurb ?? 'Manage '.Str::lower(Str::plural($singular)).' used across the system.' }}</p>
+        @if ($canWrite)
+            <x-action-guard>
+                <x-ui.button variant="primary" icon="plus" onclick="window.openCreate('{{ $resource }}')">
+                    New {{ $singular }}
+                </x-ui.button>
+            </x-action-guard>
+        @endif
     </div>
 
     {{-- Table card --}}
