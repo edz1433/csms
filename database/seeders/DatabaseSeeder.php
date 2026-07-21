@@ -168,7 +168,7 @@ class DatabaseSeeder extends Seeder
             $account = str_starts_with(strtoupper($name), 'A.F.') ? $formsInv : $officeInv;
 
             Item::updateOrCreate(
-                ['stock_number' => sprintf('ITM-%04d', $seq)],
+                ['stock_number' => sprintf('CS%05d', $seq)],
                 [
                     'name' => $name,
                     'unit_id' => $units[$uName] ?? $units->first(),

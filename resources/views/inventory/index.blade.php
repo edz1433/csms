@@ -26,7 +26,13 @@
     ]"
 >
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <x-setup.field label="Stock / Property No." name="stock_number" placeholder="e.g. OS-0001 (optional)" />
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-cpsu-black">Item Code</label>
+            <input type="text" x-model="form.stock_number" readonly
+                   class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed font-mono"
+                   :placeholder="mode === 'create' ? 'Auto-generated (e.g. CS00001)' : ''">
+            <p class="text-xs text-gray-400">Assigned automatically, starting at CS00001.</p>
+        </div>
         <x-setup.select label="Default Unit" name="unit_id" required :options="$units" placeholder="Select unit" />
     </div>
     <x-setup.field label="Item Name" name="name" required placeholder="e.g. Bond Paper A4 (sub. 20)" />

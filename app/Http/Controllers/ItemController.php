@@ -7,7 +7,6 @@ use App\Models\AccountTitle;
 use App\Models\Item;
 use App\Models\Unit;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
 
 class ItemController extends Controller
@@ -102,16 +101,43 @@ class ItemController extends Controller
 
     public function store(Request $request)
     {
-        Item::create($this->validateData($request));
+        $data = $this->validateData($request);
+
+        // Item code is automated (CS00001, CS00002, …) — never taken from input.
+        // Retry a couple of times in case two items are created back-to-back.
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                $data['stock_number'] = $this->nextItemCode();
+                Item::create($data);
+                break;
+            } catch (\Illuminate\Database\QueryException $e) {
+                if ($attempt === 2) {
+                    throw $e;
+                }
+            }
+        }
 
         return $this->ok($request, 'Item created.');
     }
 
     public function update(Request $request, Item $item)
     {
-        $item->update($this->validateData($request, $item->id));
+        // The item code is fixed once assigned; only the other fields change.
+        $item->update($this->validateData($request));
 
         return $this->ok($request, 'Item updated.');
+    }
+
+    /** Next automated item code, formatted CS00001. */
+    private function nextItemCode(): string
+    {
+        $last = Item::where('stock_number', 'like', 'CS%')
+            ->orderByRaw('CAST(SUBSTRING(stock_number, 3) AS UNSIGNED) DESC')
+            ->value('stock_number');
+
+        $next = $last ? ((int) substr($last, 2)) + 1 : 1;
+
+        return sprintf('CS%05d', $next);
     }
 
     public function destroy(Request $request, Item $item)
@@ -140,10 +166,9 @@ class ItemController extends Controller
         ]);
     }
 
-    private function validateData(Request $request, ?int $id = null): array
+    private function validateData(Request $request): array
     {
         return $request->validate([
-            'stock_number' => ['nullable', 'string', 'max:50', Rule::unique('items', 'stock_number')->ignore($id)],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'unit_id' => ['required', 'exists:units,id'],

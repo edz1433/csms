@@ -14,11 +14,11 @@
 <form method="GET" class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 mb-4 flex flex-wrap items-end gap-3">
     <div class="flex-1 min-w-[240px]">
         <label class="block text-xs font-medium text-gray-500 mb-1">Item</label>
-        <select name="item_id" id="report-item" onchange="this.form.submit()"
+        <select name="item_id" id="report-item" autocomplete="off"
                 class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
-            <option value="">Select an item…</option>
+            <option value="">Search item by name or code…</option>
             @foreach ($items as $it)
-                <option value="{{ $it->id }}" @selected($item && $item->id === $it->id)>{{ $it->name }} {{ $it->stock_number ? '('.$it->stock_number.')' : '' }}</option>
+                <option value="{{ $it->id }}" @selected($item && $item->id === $it->id)>{{ $it->stock_number ? $it->stock_number.' — ' : '' }}{{ $it->name }}</option>
             @endforeach
         </select>
     </div>
@@ -76,4 +76,15 @@
         <p>Select an item to view its stock card.</p>
     </div>
 @endif
+
+@push('scripts')
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var ts = new TomSelect('#report-item', {
+      create: false, allowEmptyOption: true,
+      onChange: function (val) { this.$input.form.submit(); },
+    });
+  });
+</script>
+@endpush
 @endsection
