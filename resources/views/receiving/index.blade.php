@@ -25,7 +25,7 @@
       { data: 'po_number', title: 'PO Number' },
       { data: 'supplier', title: 'Supplier' },
       { data: 'lines', title: 'Items', orderable: false, searchable: false },
-      { data: 'receiver', title: 'Received By' },
+      { data: 'payment', title: 'Payment', orderable: false, searchable: false, className: 'text-center' },
       { data: 'received_at', title: 'Date Received' },
       { data: 'action', title: '', orderable: false, searchable: false, className: 'text-right' },
     ], { order: [[4, 'desc']] });

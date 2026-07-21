@@ -27,9 +27,6 @@ return new class extends Migration
             $table->string('rca_code')->comment('denormalized snapshot of account_titles.rca_code at release time');
             $table->foreignId('unit_id')->constrained('units')->restrictOnDelete();
             $table->decimal('quantity', 12, 2);
-            $table->boolean('is_paid')->default(false);
-            $table->timestamp('paid_at')->nullable();
-            $table->foreignId('paid_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
 

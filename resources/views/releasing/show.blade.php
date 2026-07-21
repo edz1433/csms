@@ -3,8 +3,6 @@
 @section('title', 'RIS '.$release->ris_number)
 @section('header', 'Requisition & Issue Slip')
 
-@php $canToggle = auth()->user()->isAdministrator() || auth()->user()->isAccountingStaff(); @endphp
-
 @section('content')
 <div class="mb-4 flex items-center justify-between print:hidden">
     <a href="{{ route('releases.index') }}" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-cpsu-green">
@@ -14,10 +12,6 @@
 </div>
 
 <div
-    x-data="releaseView({
-        canToggle: {{ $canToggle ? 'true' : 'false' }},
-        toggleBase: @js(url('releases/'.$release->id.'/items')),
-    })"
     class="bg-white rounded-xl border border-cpsu-border shadow-sm p-6 max-w-4xl mx-auto"
     id="ris" data-aos="fade-up"
 >
@@ -51,7 +45,6 @@
                 <th class="py-2 pr-3">Account Title / RCA</th>
                 <th class="py-2 pr-3 text-right">Qty</th>
                 <th class="py-2 pr-3">Unit</th>
-                <th class="py-2 pr-3 text-center">Payment</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-cpsu-border">
@@ -68,20 +61,6 @@
                     </td>
                     <td class="py-2.5 pr-3 text-right font-semibold">{{ number_format($line->quantity, 2) }}</td>
                     <td class="py-2.5 pr-3">{{ $line->unit->abbreviation }}</td>
-                    <td class="py-2.5 pr-3 text-center">
-                        <div x-data="{ paid: {{ $line->is_paid ? 'true' : 'false' }}, id: {{ $line->id }} }">
-                            <button type="button"
-                                @if($canToggle) @click="toggle($data)" @endif
-                                class="badge-fade inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ $canToggle ? 'cursor-pointer hover:opacity-80' : 'cursor-default' }}"
-                                :class="paid ? 'bg-cpsu-green/10 text-cpsu-green' : 'bg-amber-100 text-amber-700'">
-                                <i :data-lucide="paid ? 'check-circle-2' : 'clock'" class="w-3.5 h-3.5"></i>
-                                <span x-text="paid ? 'Paid' : 'Unpaid'"></span>
-                            </button>
-                            @if ($line->is_paid && $line->paid_at)
-                                <p class="text-[10px] text-gray-400 mt-0.5 print:block">{{ $line->paid_at->format('M d, Y') }} · {{ $line->payer?->name }}</p>
-                            @endif
-                        </div>
-                    </td>
                 </tr>
             @endforeach
         </tbody>
@@ -99,35 +78,4 @@
         <span>Release #{{ $release->id }}</span>
     </div>
 </div>
-
-@push('scripts')
-<script>
-  function releaseView(cfg) {
-    return {
-      canToggle: cfg.canToggle,
-      toggle(row) {
-        if (!this.canToggle) return;
-        CPSU.confirm({
-          icon: 'question',
-          title: row.paid ? 'Mark this item as Unpaid?' : 'Mark this item as Paid?',
-          confirmText: row.paid ? 'Yes, mark Unpaid' : 'Yes, mark Paid',
-        }).then((r) => {
-          if (!r.isConfirmed) return;
-          fetch(cfg.toggleBase + '/' + row.id + '/payment-status', {
-            method: 'PATCH',
-            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-          })
-          .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
-          .then((d) => {
-            row.paid = d.is_paid;
-            setTimeout(() => window.lucide && lucide.createIcons(), 50);
-            CPSU.toast('Payment status updated', 'success');
-          })
-          .catch(() => CPSU.toast('Could not update payment status', 'error'));
-        });
-      },
-    };
-  }
-</script>
-@endpush
 @endsection

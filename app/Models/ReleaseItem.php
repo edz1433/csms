@@ -9,13 +9,11 @@ class ReleaseItem extends Model
 {
     protected $fillable = [
         'release_id', 'item_id', 'account_title_id', 'rca_code',
-        'unit_id', 'quantity', 'is_paid', 'paid_at', 'paid_by',
+        'unit_id', 'quantity',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
-        'is_paid' => 'boolean',
-        'paid_at' => 'datetime',
     ];
 
     public function release(): BelongsTo
@@ -36,10 +34,5 @@ class ReleaseItem extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
-    }
-
-    public function payer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'paid_by');
     }
 }

@@ -23,9 +23,12 @@ class DeliveryController extends Controller
                 ->addColumn('supplier', fn (Delivery $d) => e($d->supplier?->name ?? '—'))
                 ->addColumn('receiver', fn (Delivery $d) => e($d->receiver?->name ?? '—'))
                 ->addColumn('lines', fn (Delivery $d) => $d->items_count.' item'.($d->items_count == 1 ? '' : 's'))
+                ->addColumn('payment', fn (Delivery $d) => $d->is_paid
+                    ? '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cpsu-green/10 text-cpsu-green">Paid</span>'
+                    : '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Unpaid</span>')
                 ->addColumn('action', fn (Delivery $d) => view('receiving.partials.actions', ['delivery' => $d])->render())
                 ->filterColumn('supplier', fn ($q, $kw) => $q->whereHas('supplier', fn ($s) => $s->where('name', 'like', "%{$kw}%")))
-                ->rawColumns(['action'])
+                ->rawColumns(['payment', 'action'])
                 ->toJson();
         }
 
@@ -100,8 +103,37 @@ class DeliveryController extends Controller
 
     public function show(Delivery $delivery)
     {
-        $delivery->load(['supplier', 'receiver', 'items.item', 'items.unit']);
+        $delivery->load(['supplier', 'receiver', 'payer', 'items.item', 'items.unit']);
 
         return view('receiving.show', compact('delivery'));
+    }
+
+    /**
+     * Toggle supplier-payment status on a delivery. This is the one write
+     * exception for accounting_staff (registered outside deny.accounting.write).
+     * Allowed for administrator + accounting_staff only.
+     */
+    public function togglePayment(Request $request, Delivery $delivery)
+    {
+        $paid = ! $delivery->is_paid;
+
+        $data = $request->validate([
+            'or_number' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $delivery->update([
+            'is_paid' => $paid,
+            'or_number' => $paid ? ($data['or_number'] ?? null) : null,
+            'paid_at' => $paid ? now() : null,
+            'paid_by' => $paid ? $request->user()->id : null,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'is_paid' => $paid,
+            'or_number' => $delivery->or_number,
+            'paid_at' => $delivery->paid_at?->format('M d, Y g:i A'),
+            'paid_by' => $paid ? $request->user()->name : null,
+        ]);
     }
 }

@@ -2,7 +2,7 @@
 
 @section('title', 'Payment Status Report')
 @section('header', 'Payment Status Report')
-@section('subheader', 'Released line items — paid / unpaid tracking')
+@section('subheader', 'Supplier payments on deliveries — paid / unpaid tracking')
 
 @section('content')
 <div class="mb-4">
@@ -12,7 +12,7 @@
 </div>
 
 {{-- Filters --}}
-<form method="GET" class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+<form method="GET" class="bg-white rounded-xl border border-cpsu-border shadow-sm p-4 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
     <div>
         <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
         <input type="date" name="from" value="{{ $filters['from'] }}" class="w-full rounded-lg border border-cpsu-border px-2 py-2 text-sm focus:border-cpsu-green outline-none">
@@ -22,20 +22,11 @@
         <input type="date" name="to" value="{{ $filters['to'] }}" class="w-full rounded-lg border border-cpsu-border px-2 py-2 text-sm focus:border-cpsu-green outline-none">
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Location</label>
-        <select name="location_id" class="w-full rounded-lg border border-cpsu-border px-2 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
+        <label class="block text-xs font-medium text-gray-500 mb-1">Supplier</label>
+        <select name="supplier_id" class="w-full rounded-lg border border-cpsu-border px-2 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
             <option value="">All</option>
-            @foreach ($locations as $loc)
-                <option value="{{ $loc->id }}" @selected($filters['location_id'] == $loc->id)>{{ $loc->name }}</option>
-            @endforeach
-        </select>
-    </div>
-    <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Fund</label>
-        <select name="fund_cluster_id" class="w-full rounded-lg border border-cpsu-border px-2 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
-            <option value="">All</option>
-            @foreach ($fundClusters as $fc)
-                <option value="{{ $fc->id }}" @selected($filters['fund_cluster_id'] == $fc->id)>{{ $fc->code }}</option>
+            @foreach ($suppliers as $s)
+                <option value="{{ $s->id }}" @selected($filters['supplier_id'] == $s->id)>{{ $s->name }}</option>
             @endforeach
         </select>
     </div>
@@ -66,38 +57,38 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="text-left text-xs uppercase text-gray-500 bg-cpsu-bg">
-                <th class="px-4 py-3">RIS</th>
+                <th class="px-4 py-3">PO Number</th>
                 <th class="px-4 py-3">Date</th>
-                <th class="px-4 py-3">Location</th>
-                <th class="px-4 py-3">Item</th>
-                <th class="px-4 py-3">RCA</th>
-                <th class="px-4 py-3 text-right">Qty</th>
+                <th class="px-4 py-3">Supplier</th>
+                <th class="px-4 py-3 text-center">Items</th>
+                <th class="px-4 py-3">Received By</th>
                 <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3">OR No.</th>
                 <th class="px-4 py-3">Paid On / By</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-cpsu-border">
-            @forelse ($rows as $r)
+            @forelse ($rows as $d)
                 <tr class="hover:bg-cpsu-bg">
-                    <td class="px-4 py-2.5"><a href="{{ route('releases.show', $r->release_id) }}" class="font-mono text-cpsu-green hover:underline">{{ $r->release->ris_number }}</a></td>
-                    <td class="px-4 py-2.5 whitespace-nowrap">{{ $r->release->released_at?->format('M d, Y') }}</td>
-                    <td class="px-4 py-2.5">{{ $r->release->location?->name }}</td>
-                    <td class="px-4 py-2.5">{{ $r->item?->name }}</td>
-                    <td class="px-4 py-2.5 font-mono text-xs">{{ $r->rca_code }}</td>
-                    <td class="px-4 py-2.5 text-right font-semibold">{{ number_format($r->quantity, 2) }} <span class="text-xs text-gray-400">{{ $r->unit?->abbreviation }}</span></td>
+                    <td class="px-4 py-2.5"><a href="{{ route('deliveries.show', $d->id) }}" class="font-mono text-cpsu-green hover:underline">{{ $d->po_number }}</a></td>
+                    <td class="px-4 py-2.5 whitespace-nowrap">{{ $d->received_at?->format('M d, Y') }}</td>
+                    <td class="px-4 py-2.5">{{ $d->supplier?->name ?? '—' }}</td>
+                    <td class="px-4 py-2.5 text-center">{{ $d->items_count }}</td>
+                    <td class="px-4 py-2.5">{{ $d->receiver?->name }}</td>
                     <td class="px-4 py-2.5 text-center">
-                        @if ($r->is_paid)
+                        @if ($d->is_paid)
                             <x-ui.badge color="green">Paid</x-ui.badge>
                         @else
                             <x-ui.badge color="amber">Unpaid</x-ui.badge>
                         @endif
                     </td>
+                    <td class="px-4 py-2.5 font-mono text-xs">{{ $d->or_number ?? '—' }}</td>
                     <td class="px-4 py-2.5 text-xs text-gray-500">
-                        @if ($r->is_paid){{ $r->paid_at?->format('M d, Y') }} · {{ $r->payer?->name }}@else—@endif
+                        @if ($d->is_paid){{ $d->paid_at?->format('M d, Y') }} · {{ $d->payer?->name }}@else—@endif
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="8" class="px-4 py-10 text-center text-gray-400">No released items match these filters.</td></tr>
+                <tr><td colspan="8" class="px-4 py-10 text-center text-gray-400">No deliveries match these filters.</td></tr>
             @endforelse
         </tbody>
     </table>

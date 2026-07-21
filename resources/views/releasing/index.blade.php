@@ -25,7 +25,7 @@
       { data: 'ris_number', title: 'RIS Number' },
       { data: 'location', title: 'Campus / Office' },
       { data: 'fund', title: 'Fund', orderable: false, searchable: false },
-      { data: 'payment', title: 'Payment', orderable: false, searchable: false, className: 'text-center' },
+      { data: 'lines', title: 'Items', orderable: false, searchable: false, className: 'text-center' },
       { data: 'released_at', title: 'Date Released' },
       { data: 'action', title: '', orderable: false, searchable: false, className: 'text-right' },
     ], { order: [[4, 'desc']] });

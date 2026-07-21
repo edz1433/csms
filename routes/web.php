@@ -149,11 +149,11 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Payment-status toggle (Phase 6) — the ONE write exception for accounting.
+| Supplier-payment toggle on a delivery — the ONE write exception for accounting.
 |--------------------------------------------------------------------------
 | Registered OUTSIDE the deny.accounting.write group. Allowed for
-| administrator + accounting_staff only.
+| administrator + accounting_staff only. This is where the OR is recorded.
 */
-Route::middleware(['auth', 'page:releasing', 'role:administrator,accounting_staff'])
-    ->patch('/releases/{release}/items/{item}/payment-status', [ReleaseController::class, 'togglePayment'])
-    ->name('releases.items.payment');
+Route::middleware(['auth', 'page:receiving', 'role:administrator,accounting_staff'])
+    ->patch('/deliveries/{delivery}/payment', [DeliveryController::class, 'togglePayment'])
+    ->name('deliveries.payment');

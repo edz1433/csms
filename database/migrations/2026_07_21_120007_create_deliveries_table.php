@@ -15,6 +15,13 @@ return new class extends Migration
             $table->foreignId('received_by')->constrained('users')->restrictOnDelete();
             $table->timestamp('received_at');
             $table->text('remarks')->nullable();
+
+            // Supplier-payment tagging lives here (this is where the OR is recorded).
+            $table->string('or_number')->nullable()->comment('Official Receipt number captured when paid');
+            $table->boolean('is_paid')->default(false);
+            $table->timestamp('paid_at')->nullable();
+            $table->foreignId('paid_by')->nullable()->constrained('users')->nullOnDelete();
+
             $table->timestamps();
         });
 

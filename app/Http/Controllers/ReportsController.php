@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Delivery;
 use App\Models\FundCluster;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\Release;
 use App\Models\ReleaseItem;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -52,13 +54,11 @@ class ReportsController extends Controller
 
         return view('reports.payment-status', [
             'rows' => $rows,
-            'locations' => Location::orderBy('name')->get(['id', 'name', 'type']),
-            'fundClusters' => FundCluster::orderBy('code')->get(['id', 'code']),
+            'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
             'filters' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
-                'location_id' => $request->input('location_id'),
-                'fund_cluster_id' => $request->input('fund_cluster_id'),
+                'supplier_id' => $request->input('supplier_id'),
                 'status' => $request->input('status'),
             ],
             'totals' => [
@@ -159,42 +159,34 @@ class ReportsController extends Controller
 
     private function paymentRows(Request $request, Carbon $from, Carbon $to)
     {
-        return ReleaseItem::query()
-            ->with(['item', 'accountTitle', 'unit', 'payer', 'release.location', 'release.fundCluster'])
-            ->whereHas('release', function ($q) use ($request, $from, $to) {
-                $q->whereBetween('released_at', [$from, $to]);
-                if ($request->filled('location_id')) {
-                    $q->where('location_id', $request->integer('location_id'));
-                }
-                if ($request->filled('fund_cluster_id')) {
-                    $q->where('fund_cluster_id', $request->integer('fund_cluster_id'));
-                }
-            })
+        return Delivery::query()
+            ->with(['supplier', 'receiver', 'payer'])
+            ->withCount('items')
+            ->whereBetween('received_at', [$from, $to])
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->when($request->input('status') === 'paid', fn ($q) => $q->where('is_paid', true))
             ->when($request->input('status') === 'unpaid', fn ($q) => $q->where('is_paid', false))
             ->get()
-            ->sortByDesc(fn ($r) => $r->release->released_at)
+            ->sortByDesc(fn ($d) => $d->received_at)
             ->values();
     }
 
     private function paymentExportData(Request $request, Carbon $from, Carbon $to): array
     {
-        $rows = $this->paymentRows($request, $from, $to)->map(fn ($r) => [
-            $r->release->ris_number,
-            $r->release->released_at?->format('Y-m-d'),
-            $r->release->location?->name,
-            $r->release->fundCluster?->code,
-            $r->item?->name,
-            $r->rca_code,
-            number_format($r->quantity, 2),
-            $r->unit?->abbreviation,
-            $r->is_paid ? 'Paid' : 'Unpaid',
-            $r->paid_at?->format('Y-m-d'),
-            $r->payer?->name,
+        $rows = $this->paymentRows($request, $from, $to)->map(fn ($d) => [
+            $d->po_number,
+            $d->received_at?->format('Y-m-d'),
+            $d->supplier?->name,
+            $d->items_count,
+            $d->receiver?->name,
+            $d->is_paid ? 'Paid' : 'Unpaid',
+            $d->or_number,
+            $d->paid_at?->format('Y-m-d'),
+            $d->payer?->name,
         ])->toArray();
 
         return ['payment-status-'.now()->format('Ymd'),
-            ['RIS', 'Date', 'Location', 'Fund', 'Item', 'RCA', 'Qty', 'Unit', 'Status', 'Paid On', 'Paid By'],
+            ['PO Number', 'Date Received', 'Supplier', 'Items', 'Received By', 'Status', 'OR Number', 'Paid On', 'Paid By'],
             $rows];
     }
 

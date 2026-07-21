@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Delivery;
 use App\Models\Item;
 use App\Models\Release;
-use App\Models\ReleaseItem;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
@@ -18,7 +18,7 @@ class DashboardController extends Controller
             'releases_this_month' => Release::whereBetween('released_at', [
                 Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth(),
             ])->count(),
-            'pending_payments' => ReleaseItem::where('is_paid', false)->count(),
+            'pending_payments' => Delivery::where('is_paid', false)->count(),
         ];
 
         $lowStock = Item::with('unit')

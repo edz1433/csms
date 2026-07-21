@@ -8,7 +8,6 @@ use App\Models\Item;
 use App\Models\Location;
 use App\Models\LocationReleaseCounter;
 use App\Models\Release;
-use App\Models\ReleaseItem;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -23,24 +22,17 @@ class ReleaseController extends Controller
         if ($request->ajax()) {
             $query = Release::query()
                 ->with(['location', 'fundCluster', 'releaser'])
-                ->withCount('items')
-                ->withCount(['items as unpaid_count' => fn ($q) => $q->where('is_paid', false)]);
+                ->withCount('items');
 
             return DataTables::eloquent($query)
                 ->editColumn('released_at', fn (Release $r) => $r->released_at?->format('M d, Y'))
                 ->editColumn('ris_number', fn (Release $r) => '<span class="font-mono font-semibold">'.e($r->ris_number).'</span>')
                 ->addColumn('location', fn (Release $r) => e($r->location?->name).' <span class="text-xs text-gray-400">['.ucfirst($r->location?->type).']</span>')
                 ->addColumn('fund', fn (Release $r) => e($r->fundCluster?->code))
-                ->addColumn('payment', function (Release $r) {
-                    if ($r->unpaid_count == 0) {
-                        return '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cpsu-green/10 text-cpsu-green">Fully paid</span>';
-                    }
-
-                    return '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">'.$r->unpaid_count.' unpaid</span>';
-                })
+                ->addColumn('lines', fn (Release $r) => $r->items_count.' item'.($r->items_count == 1 ? '' : 's'))
                 ->addColumn('action', fn (Release $r) => view('releasing.partials.actions', ['release' => $r])->render())
                 ->filterColumn('location', fn ($q, $kw) => $q->whereHas('location', fn ($l) => $l->where('name', 'like', "%{$kw}%")))
-                ->rawColumns(['ris_number', 'location', 'payment', 'action'])
+                ->rawColumns(['ris_number', 'location', 'action'])
                 ->toJson();
         }
 
@@ -160,32 +152,8 @@ class ReleaseController extends Controller
 
     public function show(Release $release)
     {
-        $release->load(['location', 'fundCluster', 'releaser', 'items.item', 'items.unit', 'items.accountTitle', 'items.payer']);
+        $release->load(['location', 'fundCluster', 'releaser', 'items.item', 'items.unit', 'items.accountTitle']);
 
         return view('releasing.show', compact('release'));
-    }
-
-    /**
-     * Toggle payment status on a single release line.
-     * Reachable by administrator + accounting_staff only (see routes — this
-     * endpoint is registered OUTSIDE the deny.accounting.write group).
-     */
-    public function togglePayment(Request $request, Release $release, ReleaseItem $item)
-    {
-        abort_unless($item->release_id === $release->id, 404);
-
-        $paid = ! $item->is_paid;
-        $item->update([
-            'is_paid' => $paid,
-            'paid_at' => $paid ? now() : null,
-            'paid_by' => $paid ? $request->user()->id : null,
-        ]);
-
-        return response()->json([
-            'ok' => true,
-            'is_paid' => $paid,
-            'paid_at' => $item->paid_at?->format('M d, Y g:i A'),
-            'paid_by' => $paid ? $request->user()->name : null,
-        ]);
     }
 }
