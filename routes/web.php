@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\Setup\AccountTitleController;
 use App\Http\Controllers\Setup\FundClusterController;
@@ -62,6 +63,15 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
             Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
             Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
         });
+    });
+
+    /* ---- Receiving (Phase 5) ---- */
+
+    Route::middleware('page:receiving')->group(function () {
+        Route::get('/deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+        Route::get('/deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
+        Route::post('/deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
+        Route::get('/deliveries/{delivery}', [DeliveryController::class, 'show'])->name('deliveries.show');
     });
 
     /* ---- Setup: Reference data (Phase 3) ---- */
