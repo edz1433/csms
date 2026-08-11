@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('/', fn () => Auth::check()
     ? redirect()->route(Auth::user()->firstAccessiblePage())
-    : redirect()->route('login'));
+    : redirect()->route('login'))->name('home');
 
 /*
 |--------------------------------------------------------------------------
@@ -33,7 +33,7 @@ Route::get('/', fn () => Auth::check()
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
-    Route::get('/', [LoginController::class, 'showLogin'])->name('login');
+    Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
     Route::post('/login', [LoginController::class, 'login']);
 });
 
