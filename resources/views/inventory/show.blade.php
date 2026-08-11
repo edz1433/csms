@@ -8,9 +8,15 @@
     <a href="{{ route('items.index') }}" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-cpsu-green">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Items
     </a>
-    <x-ui.button variant="ghost" icon="file-text" :href="route('items.pdf', $item)" target="_blank" rel="noopener">
-        Stock Card PDF
-    </x-ui.button>
+    <div class="flex items-center gap-2">
+        <x-ui.button variant="ghost" icon="qr-code" :href="route('inventory.labels', ['item_id' => $item->id])"
+                     target="_blank" rel="noopener">
+            QR Tag
+        </x-ui.button>
+        <x-ui.button variant="ghost" icon="file-text" :href="route('items.pdf', $item)" target="_blank" rel="noopener">
+            Stock Card PDF
+        </x-ui.button>
+    </div>
 </div>
 
 {{-- Item header --}}

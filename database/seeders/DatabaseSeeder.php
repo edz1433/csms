@@ -44,7 +44,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Supply Staff',
                 'password' => Hash::make('password'),
                 'role' => User::ROLE_SUPPLY,
-                'access' => ['dashboard', 'items', 'receiving', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'ledger', 'reports'],
+                'access' => ['dashboard', 'items', 'receiving', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'reports'],
                 'is_active' => true,
             ]
         );
@@ -95,14 +95,57 @@ class DatabaseSeeder extends Seeder
 
     private function seedLocations(): void
     {
-        foreach ([
-            ['type' => 'campus', 'code' => 'CPSU-MAIN', 'name' => 'Main Campus (Kabankalan)'],
-            ['type' => 'campus', 'code' => 'CPSU-HINIG', 'name' => 'Hinigaran Campus'],
-            ['type' => 'office', 'code' => 'SUPPLY-OFC', 'name' => 'Supply Office'],
-            ['type' => 'office', 'code' => 'REGISTRAR', 'name' => "Registrar's Office"],
-            ['type' => 'office', 'code' => 'ACCTG-OFC', 'name' => 'Accounting Office'],
-        ] as $loc) {
-            Location::updateOrCreate(['code' => $loc['code']], $loc);
+        // Campuses (numbered 001–012) and departments (001–077) reuse the same
+        // numbers; codes are unique per type (see the locations migration), so
+        // each list is stored with plain zero-padded codes matching the master
+        // list: campus 001 = MAIN CAMPUS, office 001 = COTED, etc.
+        $campuses = [
+            'MAIN CAMPUS', 'CAUAYAN CAMPUS', 'CANDONI CAMPUS', 'ILOG CAMPUS',
+            'SIPALAY CAMPUS', 'HINOBA-AN CAMPUS', 'HINIGARAN CAMPUS', 'MOISES PADILLA CAMPUS',
+            'VICTORIAS CAMPUS', 'SAN CARLOS CAMPUS', 'MURCIA CAMPUS', 'VALLADOLID CAMPUS',
+        ];
+
+        $departments = [
+            'COTED', 'CAS', 'CAF', 'COE', 'CCJE', 'CBM', 'CCS', 'ACCOUNTING',
+            'BAC', 'BOR', 'BUDGET', 'CAO', 'CASHIER', 'CATTLE', 'CLINIC', 'CLONAL',
+            'COA', 'DRRM', 'ELECTRICAL', 'EMS', 'ESSENTIAL OIL', 'EXTENSION SERVICES',
+            'GAD', 'GRADUATE STUDIES', 'GREENTECH', 'GSO', 'GUIDANCE', 'HRMO', 'IMPDC',
+            'INTERNATIONAL AFFAIRS', 'IPMO', 'KSCD', 'LIBRARY', 'MARCHINGBAND', 'MIS',
+            'MOTORPOOL', 'MUSCOVADO', 'NSTP', 'OSSA', 'PEDO', 'PLANNING', 'PMO',
+            'POULTRY', "PRESIDENT'S OFFICE", 'PROCUREMENT', 'QA', 'RECORDS', "REGISTRAR'S",
+            'RESEARCH', 'SCHOLARSHIP', 'SOIL LAB', 'SSG', 'SUPPLY', 'TES', 'VPAF', 'VPRE',
+            'VPAA', 'ASSESSMENT', 'RADYO BANDERA', 'SECURITY', 'PHYSICAL PLANT & EQUIPMENT',
+            'MUSEUM', 'REVIEW & LICENSURE', 'FLP', 'JOURNAL', 'GOAT PROJECT', 'RICE PROJECT',
+            'PAYROLL', 'PIGGERY PROJECT', 'ENGINEERED BAMBOO PROJECT', 'QMS',
+            'TRAINING SERVICES', 'CURRICULUM PLANNING', 'CARABAO PROJECT', 'YEARBOOK',
+            'FORESTRY', 'LEGAL',
+        ];
+
+        // Key on (type, code) so the code is authoritative and the name is kept
+        // in sync — position 1 = 001, 2 = 002, …
+        $pad = fn (int $i) => str_pad($i, 3, '0', STR_PAD_LEFT);
+
+        foreach ($campuses as $i => $name) {
+            Location::updateOrCreate(['type' => 'campus', 'code' => $pad($i + 1)], ['name' => $name]);
+        }
+        foreach ($departments as $i => $name) {
+            Location::updateOrCreate(['type' => 'office', 'code' => $pad($i + 1)], ['name' => $name]);
+        }
+
+        // Remove legacy sample locations that aren't part of the master list,
+        // but only when no release references them (FK-safe).
+        $validCampus = array_map($pad, range(1, count($campuses)));
+        $validOffice = array_map($pad, range(1, count($departments)));
+
+        $strays = Location::where(fn ($q) => $q
+            ->where(fn ($c) => $c->where('type', 'campus')->whereNotIn('code', $validCampus))
+            ->orWhere(fn ($o) => $o->where('type', 'office')->whereNotIn('code', $validOffice)))
+            ->get();
+
+        foreach ($strays as $stray) {
+            if (! \App\Models\Release::where('location_id', $stray->id)->exists()) {
+                $stray->delete();
+            }
         }
     }
 
@@ -167,6 +210,10 @@ class DatabaseSeeder extends Seeder
             // everything else defaults to Office Supplies Inventory.
             $account = str_starts_with(strtoupper($name), 'A.F.') ? $formsInv : $officeInv;
 
+            // Placeholder unit cost (deterministic ₱5–₱2,005) so the RSMI report
+            // shows amounts out of the box — edit real costs in Item management.
+            $unitCost = round(5 + (crc32($name) % 200000) / 100, 2);
+
             Item::updateOrCreate(
                 ['stock_number' => sprintf('CS%05d', $seq)],
                 [
@@ -174,6 +221,7 @@ class DatabaseSeeder extends Seeder
                     'unit_id' => $units[$uName] ?? $units->first(),
                     'account_title_id' => $account,
                     'on_hand_qty' => $qty,
+                    'unit_cost' => $unitCost,
                     'is_active' => true,
                 ]
             );

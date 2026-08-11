@@ -21,4 +21,13 @@ return [
 
     // Minimum number of item rows to render (blank rows keep the form shape).
     'min_rows' => 12,
+
+    /*
+    | Report of Supplies and Materials Issued (Appendix 64) signatories.
+    | "Certified correct by" = Supply Officer; "Posted by" = Accounting Staff.
+    */
+    'rsmi' => [
+        'certified_by' => 'RAZEL C. MAMAR, MPA',
+        'posted_by' => 'ERFA B. GETONZO, CPA',
+    ],
 ];

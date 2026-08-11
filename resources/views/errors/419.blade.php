@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('code', '419')
+@section('icon', 'timer-off')
+@section('message', 'Your session expired')
+@section('detail', 'You were away a little too long and the page went stale. Sign in again and your work continues where it left off.')

@@ -25,7 +25,7 @@
                 icon="trash-2"
                 variant="danger"
                 title="Delete"
-                onclick="CPSU.deleteResource('{{ $deleteUrl }}', '{{ $label }}', @js($resource ?? $edit[0] ?? null))" />
+                onclick="CPSU.deleteResource('{{ $deleteUrl }}', '{{ $label }}', {{ Illuminate\Support\Js::from($resource ?? $edit[0] ?? null) }})" />
         @endif
     </x-action-guard>
 </div>

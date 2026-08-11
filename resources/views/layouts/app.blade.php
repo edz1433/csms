@@ -10,7 +10,10 @@
     <div class="lg:pl-64 min-h-screen flex flex-col">
         {{-- Topbar --}}
         <header class="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur border-b border-cpsu-border flex items-center gap-3 px-4 lg:px-6">
-            <button @click="$dispatch('toggle-sidebar')"
+            {{-- x-data is required: Alpine only binds directives inside a
+                 component root, so without it this button did nothing. --}}
+            <button x-data type="button" aria-label="Toggle menu"
+                    @click="$dispatch('toggle-sidebar')"
                     class="lg:hidden p-2 -ml-2 rounded-lg hover:bg-cpsu-bg text-cpsu-black active:scale-95 transition">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
@@ -60,6 +63,19 @@
                 </div>
             </div>
         </header>
+
+        {{-- Maintenance banner: only administrators are here while it is on. --}}
+        @if (\App\Models\Setting::bool('maintenance_enabled'))
+            <div class="bg-amber-50 border-b border-amber-300 px-4 lg:px-6 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span class="inline-flex items-center gap-1.5 font-bold text-amber-800">
+                    <i data-lucide="wrench" class="w-4 h-4"></i> Maintenance mode is ON
+                </span>
+                <span class="text-amber-700/90">Staff accounts see the maintenance page — you are signed in as an administrator.</span>
+                @if (auth()->user()->isAdministrator())
+                    <a href="{{ route('settings.index') }}" class="ml-auto font-semibold text-amber-900 hover:underline">Manage</a>
+                @endif
+            </div>
+        @endif
 
         {{-- Flash messages --}}
         @if (session('success') || session('error'))

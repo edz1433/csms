@@ -1,4 +1,5 @@
 @extends('errors.minimal')
 @section('code', '403')
-@section('message', 'Access denied')
-@section('detail', $exception->getMessage() ?: 'You do not have permission to view this page.')
+@section('icon', 'shield-x')
+@section('message', 'You do not have access')
+@section('detail', 'Your account is not allowed on this page. Ask an administrator to grant you access under User Management.')

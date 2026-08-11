@@ -166,7 +166,9 @@
   .cpsu-table td, .cpsu-table th { word-break: break-word; overflow-wrap: anywhere; }
 
   /* Tom Select on-brand focus + exact 38px height to match native inputs (py-2 text-sm) */
-  .ts-wrapper { margin: 0 !important; }
+  /* Tom Select copies the <select>'s utility classes onto the wrapper; strip the
+     border/padding/background so only the inner .ts-control shows (no double box). */
+  .ts-wrapper { margin: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
   .ts-wrapper.single .ts-control {
     box-sizing: border-box !important;
     border-radius: .5rem !important; border-color: var(--cpsu-border) !important;
@@ -290,6 +292,32 @@
         CPSU.toast('Status updated', 'success');
       })
       .fail(function () { CPSU.toast('Could not update status', 'error'); });
+  };
+
+  // Report pickers: narrow a TomSelect to the records matching the chosen
+  // fund cluster / account title. `records` are {value, text, funds[],
+  // accounts[]}; returns a function to re-apply the scope, which keeps the
+  // current selection when it survives and reports how many remain.
+  window.CPSU.scopePicker = function (tomSelect, records, placeholder) {
+    return function (fundId, accountId) {
+      var keep = records.filter(function (r) {
+        var fundOk = !fundId || (r.funds || []).indexOf(Number(fundId)) !== -1;
+        var accountOk = !accountId || (r.accounts || []).indexOf(Number(accountId)) !== -1;
+        return fundOk && accountOk;
+      });
+
+      var current = tomSelect.getValue();
+      var survives = keep.some(function (r) { return String(r.value) === String(current); });
+
+      tomSelect.clear(true);
+      tomSelect.clearOptions();
+      tomSelect.addOption({ value: '', text: placeholder || 'Search…' });
+      tomSelect.addOptions(keep);
+      tomSelect.refreshOptions(false);
+      if (current && survives) { tomSelect.setValue(current, true); }
+
+      return { count: keep.length, kept: current && survives ? current : '' };
+    };
   };
 
   // Open a resource form modal in create/edit mode. Page-level Alpine forms

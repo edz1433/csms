@@ -3,6 +3,9 @@
 <div class="flex items-center justify-end gap-1">
     <x-ui.icon-btn icon="eye" variant="view" :href="route('items.show', $item)" title="View stock card" />
 
+    <x-ui.icon-btn icon="qr-code" variant="default" title="Print QR tag"
+        :href="route('inventory.labels', ['item_id' => $item->id])" target="_blank" rel="noopener" />
+
     @if ($canWrite)
         <x-ui.icon-btn
             icon="pencil" variant="edit" title="Edit"

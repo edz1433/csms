@@ -10,11 +10,12 @@ class Item extends Model
 {
     protected $fillable = [
         'stock_number', 'name', 'description',
-        'unit_id', 'account_title_id', 'on_hand_qty', 'is_active',
+        'unit_id', 'account_title_id', 'on_hand_qty', 'unit_cost', 'is_active',
     ];
 
     protected $casts = [
         'on_hand_qty' => 'decimal:2',
+        'unit_cost' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 

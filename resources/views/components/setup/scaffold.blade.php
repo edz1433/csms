@@ -10,6 +10,7 @@
     'tableId' => null,
     'canWrite' => true,      // gates the "New" button (e.g. items = admin only)
     'blurb' => null,
+    'toolbar' => null,       // extra buttons rendered left of "New …"
 ])
 
 @php $tableId = $tableId ?? ($resource.'-table'); @endphp
@@ -25,13 +26,16 @@
     {{-- Toolbar --}}
     <div class="flex items-center justify-between gap-3 mb-4">
         <p class="text-sm text-gray-500 hidden sm:block">{{ $blurb ?? 'Manage '.Str::lower(Str::plural($singular)).' used across the system.' }}</p>
-        @if ($canWrite)
-            <x-action-guard>
-                <x-ui.button variant="primary" icon="plus" onclick="window.openCreate('{{ $resource }}')">
-                    New {{ $singular }}
-                </x-ui.button>
-            </x-action-guard>
-        @endif
+        <div class="flex items-center gap-2">
+            {{ $toolbar }}
+            @if ($canWrite)
+                <x-action-guard>
+                    <x-ui.button variant="primary" icon="plus" onclick="window.openCreate('{{ $resource }}')">
+                        New {{ $singular }}
+                    </x-ui.button>
+                </x-action-guard>
+            @endif
+        </div>
     </div>
 
     {{-- Table card --}}

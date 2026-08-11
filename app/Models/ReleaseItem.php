@@ -9,11 +9,12 @@ class ReleaseItem extends Model
 {
     protected $fillable = [
         'release_id', 'item_id', 'account_title_id', 'rca_code',
-        'unit_id', 'quantity',
+        'unit_id', 'quantity', 'unit_cost',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
+        'unit_cost' => 'decimal:2',
     ];
 
     public function release(): BelongsTo

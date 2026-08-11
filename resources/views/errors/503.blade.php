@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('code', '503')
+@section('icon', 'wrench')
+@section('message', 'Under maintenance')
+@section('detail', 'The system is temporarily unavailable while maintenance is being performed. Please check back shortly.')

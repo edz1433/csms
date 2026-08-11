@@ -30,7 +30,8 @@
 <body>
     <div class="appendix">Appendix 58</div>
 
-    {{-- Header box: letterhead + STOCK CARD title --}}
+    {{-- Header box: letterhead + STOCK CARD title, with the QR tag floated
+         to the right of the header when the report asks for it. --}}
     <table class="box">
         <tr>
             <td class="head-cell">
@@ -42,6 +43,12 @@
                 @endif
                 <div class="title">STOCK CARD</div>
             </td>
+            @if ($qr ?? null)
+                <td width="15%" style="text-align:center; vertical-align:middle; padding:3px">
+                    <img src="{{ $qr }}" alt="" style="width:62px;height:62px">
+                    <div style="font-size:5.5px;color:#666;letter-spacing:.3px">SCAN TO COUNT</div>
+                </td>
+            @endif
         </tr>
     </table>
 
@@ -63,6 +70,7 @@
             <td colspan="2"><span class="lbl">Unit of Measurement :</span> {{ $item->unit?->abbreviation }}</td>
         </tr>
     </table>
+
 
     {{-- Stock card table --}}
     @php

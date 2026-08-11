@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('code', '401')
+@section('icon', 'lock')
+@section('message', 'Please sign in')
+@section('detail', 'This page requires you to be signed in to the Common Supply Management System.')

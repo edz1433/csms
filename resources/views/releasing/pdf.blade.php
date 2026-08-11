@@ -63,6 +63,16 @@
         $minRows = (int) config('ris.min_rows', 12);
         $count = $release->items->count();
         $blanks = max(0, $minRows - $count);
+
+        // Issue price is the cost snapshotted when the item was released; older
+        // lines saved before that was captured fall back to the item's cost.
+        $unitPrice = fn ($line) => (float) $line->unit_cost > 0
+            ? (float) $line->unit_cost
+            : (float) ($line->item?->unit_cost ?? 0);
+        $linePrice = fn ($line) => (float) $line->quantity * $unitPrice($line);
+        $peso = fn ($n) => (float) $n != 0.0 ? number_format($n, 2) : '';
+
+        $grandTotal = $release->items->sum(fn ($line) => $linePrice($line));
     @endphp
     <table class="items">
         <thead>
@@ -86,8 +96,8 @@
                     <td class="c">{{ $line->unit?->abbreviation ?? $line->item?->unit?->abbreviation }}</td>
                     <td>{{ $line->item?->name }}</td>
                     <td class="c">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
-                    <td class="r">&nbsp;</td>
-                    <td class="r">&nbsp;</td>
+                    <td class="r">{{ $peso($unitPrice($line)) }}</td>
+                    <td class="r">{{ $peso($linePrice($line)) }}</td>
                 </tr>
             @endforeach
             @for ($i = 0; $i < $blanks; $i++)
@@ -95,7 +105,7 @@
             @endfor
             <tr>
                 <td colspan="5" class="r" style="font-weight:bold">TOTAL:</td>
-                <td class="r">&nbsp;</td>
+                <td class="r" style="font-weight:bold">{{ $peso($grandTotal) }}</td>
             </tr>
         </tbody>
     </table>

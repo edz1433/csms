@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DeliveryItem extends Model
 {
-    protected $fillable = ['delivery_id', 'item_id', 'unit_id', 'quantity'];
+    protected $fillable = ['delivery_id', 'item_id', 'unit_id', 'quantity', 'unit_cost'];
 
-    protected $casts = ['quantity' => 'decimal:2'];
+    protected $casts = ['quantity' => 'decimal:2', 'unit_cost' => 'decimal:2'];
 
     public function delivery(): BelongsTo
     {

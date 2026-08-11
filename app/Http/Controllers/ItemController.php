@@ -26,6 +26,7 @@ class ItemController extends Controller
                 ->addColumn('account', fn (Item $i) => $i->accountTitle
                     ? e($i->accountTitle->name).' <span class="font-mono text-xs text-cpsu-green">'.e($i->accountTitle->rca_code).'</span>'
                     : '<span class="text-gray-300">—</span>')
+                ->addColumn('unit_cost', fn (Item $i) => number_format($i->unit_cost, 2))
                 ->addColumn('on_hand', fn (Item $i) => '<span class="font-semibold '.($i->on_hand_qty <= 0 ? 'text-cpsu-danger' : 'text-cpsu-black').'">'.number_format($i->on_hand_qty, 2).'</span>')
                 ->addColumn('status', fn (Item $i) => $i->is_active
                     ? '<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cpsu-green/10 text-cpsu-green">Active</span>'
@@ -39,6 +40,7 @@ class ItemController extends Controller
                 ->filterColumn('unit', fn ($q, $kw) => $q->whereHas('unit', fn ($u) => $u->where('abbreviation', 'like', "%{$kw}%")->orWhere('name', 'like', "%{$kw}%")))
                 ->filterColumn('account', fn ($q, $kw) => $q->whereHas('accountTitle', fn ($a) => $a->where('name', 'like', "%{$kw}%")->orWhere('rca_code', 'like', "%{$kw}%")))
                 ->orderColumn('on_hand', 'on_hand_qty $1')
+                ->orderColumn('unit_cost', 'unit_cost $1')
                 ->rawColumns(['stock_number', 'account', 'on_hand', 'status', 'action'])
                 ->toJson();
         }
@@ -239,6 +241,7 @@ class ItemController extends Controller
             'description' => ['nullable', 'string'],
             'unit_id' => ['required', 'exists:units,id'],
             'account_title_id' => ['nullable', 'exists:account_titles,id'],
+            'unit_cost' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
     }

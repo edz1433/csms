@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Delivery extends Model
 {
     protected $fillable = [
-        'po_number', 'supplier_id', 'received_by', 'received_at', 'remarks',
+        'po_number', 'fund_cluster_id', 'supplier_id', 'received_by', 'received_at', 'remarks',
         'or_number', 'is_paid', 'paid_at', 'paid_by',
     ];
 
@@ -18,6 +18,11 @@ class Delivery extends Model
         'is_paid' => 'boolean',
         'paid_at' => 'datetime',
     ];
+
+    public function fundCluster(): BelongsTo
+    {
+        return $this->belongsTo(FundCluster::class);
+    }
 
     public function supplier(): BelongsTo
     {

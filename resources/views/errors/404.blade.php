@@ -1,4 +1,5 @@
 @extends('errors.minimal')
 @section('code', '404')
+@section('icon', 'map-pin-off')
 @section('message', 'Page not found')
-@section('detail', 'The page you are looking for does not exist or has been moved.')
+@section('detail', 'The page you are looking for does not exist, was renamed, or has been moved.')

@@ -14,6 +14,7 @@ return [
     'pages' => [
         'dashboard',
         'items',
+        'inventory',         // Physical inventory (QR stock take)
         'receiving',
         'releasing',
         'suppliers',
@@ -21,7 +22,6 @@ return [
         'units',
         'fund_clusters',
         'account_titles',
-        'ledger',
         'reports',
         'users',
     ],
@@ -30,6 +30,7 @@ return [
     'labels' => [
         'dashboard'      => 'Dashboard',
         'items'          => 'Items / Stocks',
+        'inventory'      => 'Physical Inventory',
         'receiving'      => 'Receiving',
         'releasing'      => 'Releasing',
         'suppliers'      => 'Suppliers',
@@ -37,7 +38,6 @@ return [
         'units'          => 'Units',
         'fund_clusters'  => 'Fund Clusters',
         'account_titles' => 'Account Titles',
-        'ledger'         => 'Supply Ledger',
         'reports'        => 'Reports',
         'users'          => 'User Management',
     ],

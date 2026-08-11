@@ -24,6 +24,7 @@
     {{-- Meta --}}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 text-sm">
         <div><p class="text-xs text-gray-400 uppercase">PO Number</p><p class="font-semibold font-mono">{{ $delivery->po_number }}</p></div>
+        <div><p class="text-xs text-gray-400 uppercase">Fund Cluster</p><p class="font-semibold">{{ $delivery->fundCluster?->code ?? '—' }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Supplier</p><p class="font-semibold">{{ $delivery->supplier?->name ?? '—' }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Date Received</p><p class="font-semibold">{{ $delivery->received_at?->format('M d, Y') }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Received By</p><p class="font-semibold">{{ $delivery->receiver?->name }}</p></div>

@@ -1,4 +1,5 @@
 @extends('errors.minimal')
 @section('code', '500')
+@section('icon', 'server-crash')
 @section('message', 'Something went wrong')
-@section('detail', 'An unexpected error occurred. Please try again, or contact the administrator if it persists.')
+@section('detail', 'An unexpected error occurred on our side. Please try again — if it keeps happening, report it to the administrator.')

@@ -8,6 +8,7 @@
     $nav = [
         ['key' => 'dashboard',      'route' => 'dashboard',            'label' => 'Dashboard',        'icon' => 'layout-dashboard'],
         ['key' => 'items',          'route' => 'items.index',          'label' => 'Items / Stocks',   'icon' => 'package'],
+        ['key' => 'inventory',      'route' => 'inventory.index',      'label' => 'Physical Inventory', 'icon' => 'scan-line'],
         ['key' => 'receiving',      'route' => 'deliveries.index',     'label' => 'Receiving',        'icon' => 'truck'],
         ['key' => 'releasing',      'route' => 'releases.index',       'label' => 'Releasing',        'icon' => 'send'],
         ['key' => 'suppliers',      'route' => 'suppliers.index',      'label' => 'Suppliers',        'icon' => 'building-2'],
@@ -15,7 +16,6 @@
         ['key' => 'units',          'route' => 'units.index',          'label' => 'Units',            'icon' => 'ruler'],
         ['key' => 'fund_clusters',  'route' => 'fund-clusters.index',  'label' => 'Fund Clusters',    'icon' => 'layers'],
         ['key' => 'account_titles', 'route' => 'account-titles.index', 'label' => 'Account Titles',   'icon' => 'book-open'],
-        ['key' => 'ledger',         'route' => 'ledger.index',         'label' => 'Supply Ledger',    'icon' => 'notebook-text'],
         ['key' => 'reports',        'route' => 'reports.index',        'label' => 'Reports',          'icon' => 'bar-chart-3'],
         ['key' => 'users',          'route' => 'users.index',          'label' => 'User Management',   'icon' => 'users'],
     ];
@@ -26,6 +26,7 @@
     class="fixed inset-y-0 left-0 z-50 w-64 bg-cpsu-green text-white flex flex-col transform transition-transform duration-200 lg:translate-x-0"
     :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
     @toggle-sidebar.window="open = !open"
+    @close-sidebar.window="open = false"
     @keydown.escape.window="open = false"
 >
     {{-- Brand header --}}
@@ -37,6 +38,12 @@
             <div class="font-bold text-sm tracking-tight">CPSU <span class="text-cpsu-gold">CSMS</span></div>
             <div class="text-[10px] text-white/70">Supply Management</div>
         </div>
+
+        {{-- Close the drawer on phones --}}
+        <button type="button" @click="$dispatch('close-sidebar')" aria-label="Close menu"
+                class="lg:hidden ml-auto p-1.5 -mr-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
     </div>
 
     {{-- Nav --}}
@@ -44,7 +51,7 @@
         @foreach ($nav as $item)
             @if ($can($item['key']) && \Illuminate\Support\Facades\Route::has($item['route']))
                 @php $active = request()->routeIs(\Illuminate\Support\Str::before($item['route'], '.').'*'); @endphp
-                <a href="{{ route($item['route']) }}"
+                <a href="{{ route($item['route']) }}" @click="$dispatch('close-sidebar')"
                    class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200
                           {{ $active ? 'bg-white/10 text-white border-l-4 border-cpsu-gold pl-2' : 'text-white/80 hover:bg-white/10 hover:text-white border-l-4 border-transparent pl-2' }}">
                     <i data-lucide="{{ $item['icon'] }}" class="w-[18px] h-[18px] shrink-0"></i>
@@ -52,6 +59,22 @@
                 </a>
             @endif
         @endforeach
+
+        {{-- Administrator-only: system-wide settings (maintenance mode). --}}
+        @if ($role === 'administrator')
+            <div class="pt-3 mt-3 border-t border-white/10">
+                @php $settingsActive = request()->routeIs('settings.*'); @endphp
+                <a href="{{ route('settings.index') }}" @click="$dispatch('close-sidebar')"
+                   class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200
+                          {{ $settingsActive ? 'bg-white/10 text-white border-l-4 border-cpsu-gold pl-2' : 'text-white/80 hover:bg-white/10 hover:text-white border-l-4 border-transparent pl-2' }}">
+                    <i data-lucide="settings" class="w-[18px] h-[18px] shrink-0"></i>
+                    <span>System Settings</span>
+                    @if (\App\Models\Setting::bool('maintenance_enabled'))
+                        <span class="ml-auto h-2 w-2 rounded-full bg-cpsu-gold animate-pulse" title="Maintenance declared"></span>
+                    @endif
+                </a>
+            </div>
+        @endif
     </nav>
 
     {{-- Footer identity (sign out lives in the top-right user menu) --}}
@@ -68,9 +91,13 @@
     </div>
 </aside>
 
-{{-- Mobile backdrop --}}
-<div x-data="{ open:false }" @toggle-sidebar.window="open=!open"
-     x-show="open" x-cloak @click="$dispatch('toggle-sidebar')"
+{{-- Mobile backdrop. It mirrors the drawer's state, so every way of closing
+     goes through the shared close-sidebar event and the two cannot desync. --}}
+<div x-data="{ open:false }"
+     @toggle-sidebar.window="open=!open"
+     @close-sidebar.window="open=false"
+     @keydown.escape.window="open=false"
+     x-show="open" x-cloak @click="$dispatch('close-sidebar')"
      x-transition:enter="transition-opacity duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
      x-transition:leave="transition-opacity duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
      class="fixed inset-0 z-40 bg-black/40 lg:hidden"></div>

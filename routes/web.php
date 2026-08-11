@@ -3,15 +3,18 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\LedgerController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\ReportsController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Setup\AccountTitleController;
 use App\Http\Controllers\Setup\FundClusterController;
 use App\Http\Controllers\Setup\LocationController;
 use App\Http\Controllers\Setup\SupplierController;
 use App\Http\Controllers\Setup\UnitController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -98,20 +101,50 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::patch('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     });
 
-    /* ---- Supply Ledger Card (Appendix 57) ---- */
-
-    Route::middleware('page:ledger')->group(function () {
-        Route::get('/ledger', [\App\Http\Controllers\LedgerController::class, 'index'])->name('ledger.index');
-        Route::get('/ledger/pdf', [\App\Http\Controllers\LedgerController::class, 'pdf'])->name('ledger.pdf');
-    });
-
-    /* ---- Reports (Phase 7) ---- */
+    /* ---- Reports (Phase 7) — hub with tabs: Releases Summary, Stock Card,
+       Payment Status and the Supply Ledger Card (Appendix 57). ---- */
 
     Route::middleware('page:reports')->group(function () {
         Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('/reports/ris/pdf', [ReportsController::class, 'risPdf'])->name('reports.ris.pdf');
         Route::get('/reports/stock-card', [ReportsController::class, 'stockCard'])->name('reports.stock-card');
+        Route::get('/reports/stock-card/pdf', [ReportsController::class, 'stockCardPdf'])->name('reports.stock-card.pdf');
+        Route::get('/reports/stock-status', [ReportsController::class, 'stockStatus'])->name('reports.stock-status');
+        Route::get('/reports/stock-status/pdf', [ReportsController::class, 'stockStatusPdf'])->name('reports.stock-status.pdf');
+        Route::get('/reports/account-summary', [ReportsController::class, 'accountSummary'])->name('reports.account-summary');
+        Route::get('/reports/account-summary/pdf', [ReportsController::class, 'accountSummaryPdf'])->name('reports.account-summary.pdf');
         Route::get('/reports/payment-status', [ReportsController::class, 'paymentStatus'])->name('reports.payment-status');
+        Route::get('/reports/rsmi', [ReportsController::class, 'rsmi'])->name('reports.rsmi');
+        Route::get('/reports/rsmi/pdf', [ReportsController::class, 'rsmiPdf'])->name('reports.rsmi.pdf');
+        Route::get('/reports/ledger', [LedgerController::class, 'index'])->name('reports.ledger');
+        Route::get('/reports/ledger/pdf', [LedgerController::class, 'pdf'])->name('reports.ledger.pdf');
         Route::get('/reports/{report}/export', [ReportsController::class, 'export'])->name('reports.export');
+    });
+
+    /* ---- Physical Inventory (stock take) — QR-driven counting ----
+       Static segments are declared before /inventory/{session} so they are not
+       swallowed by the model binding. */
+
+    Route::middleware('page:inventory')->group(function () {
+        Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+        Route::get('/inventory/status', [InventoryController::class, 'status'])->name('inventory.status');
+        Route::get('/inventory/scanner', [InventoryController::class, 'scanner'])->name('inventory.scanner');
+        Route::get('/inventory/labels', [InventoryController::class, 'labels'])->name('inventory.labels');
+        Route::get('/inventory/lookup', [InventoryController::class, 'lookup'])->name('inventory.lookup');
+        Route::post('/inventory/count', [InventoryController::class, 'count'])->name('inventory.count');
+        Route::get('/inventory/scan/{item}', [InventoryController::class, 'scan'])->name('inventory.scan');
+        Route::get('/inventory/{session}', [InventoryController::class, 'show'])->name('inventory.show');
+        Route::get('/inventory/{session}/export', [InventoryController::class, 'export'])->name('inventory.export');
+        Route::patch('/inventory/{session}/cast', [InventoryController::class, 'cast'])->name('inventory.cast');
+        Route::patch('/inventory/{session}/close', [InventoryController::class, 'close'])->name('inventory.close');
+    });
+
+    /* ---- System Settings (administrator only) ---- */
+
+    Route::middleware('role:administrator')->group(function () {
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
     });
 
     /* ---- Setup: Reference data (Phase 3) ---- */

@@ -1,26 +1,31 @@
 @extends('layouts.app')
 
 @section('title', 'Supply Ledger Card')
-@section('header', 'Supply Ledger Card')
-@section('subheader', 'Appendix 57 — per-item receipt / issue / balance ledger')
+@section('header', 'Reports')
+@section('subheader', 'Supply Ledger Card (Appendix 57) — per-item receipt / issue / balance ledger')
 
 @section('content')
+@include('reports.partials.tabs', ['active' => 'ledger'])
+
 <div x-data="ledgerCard({
-        base: @js(route('ledger.pdf')),
+        base: @js(route('reports.ledger.pdf')),
         from: @js(now()->startOfYear()->toDateString()),
         to: @js(now()->endOfYear()->toDateString()),
+        records: {{ Illuminate\Support\Js::from($items) }},
      })">
 
-    {{-- Filter form (single row: item · date range · generate) --}}
+    {{-- Filter form (fund cluster · account title · item · date range · generate) --}}
     <div class="relative z-20 bg-white rounded-xl border border-cpsu-border shadow-sm p-4 sm:p-5 mb-4" data-aos="fade-up">
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+            @include('reports.partials.scope-filters', ['prefix' => 'ledger'])
+
             <div class="sm:col-span-6">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Item</label>
                 <select id="ledger-item" x-model="itemId" autocomplete="off"
                         class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
                     <option value="">Search item by name or code…</option>
                     @foreach ($items as $it)
-                        <option value="{{ $it->id }}">{{ $it->stock_number ? $it->stock_number.' — ' : '' }}{{ $it->name }}</option>
+                        <option value="{{ $it['value'] }}">{{ $it['text'] }}</option>
                     @endforeach
                 </select>
             </div>
@@ -59,10 +64,16 @@
 <script>
   function ledgerCard(cfg) {
     return {
-      itemId: '', from: cfg.from, to: cfg.to, url: '',
+      itemId: '', fund_cluster_id: '', account_title_id: '',
+      from: cfg.from, to: cfg.to, url: '',
       init() {
         var self = this;
-        new TomSelect('#ledger-item', { create: false, allowEmptyOption: true });
+        new TomSelect('#ledger-fund', { create: false, allowEmptyOption: true });
+        new TomSelect('#ledger-account', { create: false, allowEmptyOption: true });
+        var picker = new TomSelect('#ledger-item', { create: false, allowEmptyOption: true });
+        this.applyScope = CPSU.scopePicker(picker, cfg.records, 'Search item by name or code…');
+        this.$watch('fund_cluster_id', function () { self.rescope(); });
+        this.$watch('account_title_id', function () { self.rescope(); });
         flatpickr('#ledger-range', {
           mode: 'range', dateFormat: 'Y-m-d',
           defaultDate: [cfg.from, cfg.to],
@@ -76,6 +87,11 @@
       },
       fmt(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      },
+      rescope() {
+        var res = this.applyScope(this.fund_cluster_id, this.account_title_id);
+        this.itemId = res.kept;
+        if (!res.count) { CPSU.toast('No items match these filters.', 'info'); }
       },
       generate() {
         if (!this.itemId) { CPSU.toast('Please select an item first.', 'error'); return; }

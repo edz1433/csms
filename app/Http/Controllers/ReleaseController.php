@@ -135,6 +135,7 @@ class ReleaseController extends Controller
                     'rca_code' => $rca, // immutable snapshot at release time
                     'unit_id' => $line['unit_id'],
                     'quantity' => $line['quantity'],
+                    'unit_cost' => $locked[$line['item_id']]->unit_cost, // price snapshot for the RSMI
                 ]);
 
                 $locked[$line['item_id']]->decrement('on_hand_qty', $line['quantity']);

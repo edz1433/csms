@@ -19,6 +19,7 @@
         table.ledger td, table.ledger th { border: 1px solid #000; padding: 2px 3px; font-size: 7.5px; }
         table.ledger th { text-align: center; font-weight: bold; }
         .c { text-align: center; }
+        td.ref { word-wrap: break-word; line-height: 1.25; }
         .r { text-align: right; }
         td.h { height: 13px; }
     </style>
@@ -63,12 +64,13 @@
         $used = $rows->count();
         $blanks = max(0, $minRows - $used);
         $fmt = fn ($n) => rtrim(rtrim(number_format($n, 2), '0'), '.');
+        $peso = fn ($n) => (float) $n != 0.0 ? number_format($n, 2) : '';
     @endphp
     <table class="ledger" style="margin-top:4px">
         <thead>
             <tr>
                 <th rowspan="2" width="9%">Date</th>
-                <th rowspan="2" width="22%">Reference</th>
+                <th rowspan="2" width="26%">Reference</th>
                 <th colspan="3">Receipt</th>
                 <th colspan="3">Issue</th>
                 <th colspan="3">Balance</th>
@@ -87,20 +89,25 @@
                 <td>Beginning Balance</td>
                 <td></td><td></td><td></td>
                 <td></td><td></td><td></td>
-                <td class="r">{{ $fmt($beginning) }}</td><td></td><td></td>
+                <td class="r">{{ $fmt($beginning) }}</td>
+                <td class="r">{{ $peso($beginningCost) }}</td>
+                <td class="r">{{ $peso($beginningValue) }}</td>
                 <td></td>
             </tr>
 
             @foreach ($rows as $row)
                 <tr>
                     <td class="c">{{ $row['date']?->format('m/d/Y') }}</td>
-                    <td>{{ $row['ref'] }}</td>
+                    <td class="ref">{{ $row['ref'] }}</td>
                     <td class="r">{{ $row['type'] === 'in' ? $fmt($row['qty']) : '' }}</td>
-                    <td></td><td></td>
+                    <td class="r">{{ $row['type'] === 'in' ? $peso($row['unit_cost']) : '' }}</td>
+                    <td class="r">{{ $row['type'] === 'in' ? $peso($row['total_cost']) : '' }}</td>
                     <td class="r">{{ $row['type'] === 'out' ? $fmt($row['qty']) : '' }}</td>
-                    <td></td><td></td>
-                    <td class="r">{{ $fmt($row['balance']) }}</td>
-                    <td></td><td></td>
+                    <td class="r">{{ $row['type'] === 'out' ? $peso($row['unit_cost']) : '' }}</td>
+                    <td class="r">{{ $row['type'] === 'out' ? $peso($row['total_cost']) : '' }}</td>
+                    <td class="r">{{ $fmt($row['bal_qty']) }}</td>
+                    <td class="r">{{ $peso($row['bal_cost']) }}</td>
+                    <td class="r">{{ $peso($row['bal_total']) }}</td>
                     <td></td>
                 </tr>
             @endforeach
@@ -118,9 +125,12 @@
             {{-- Totals --}}
             <tr style="font-weight:bold">
                 <td colspan="2" class="c">TOTAL</td>
-                <td class="r">{{ $fmt($totalReceipt) }}</td><td></td><td></td>
-                <td class="r">{{ $fmt($totalIssue) }}</td><td></td><td></td>
-                <td class="r">{{ $fmt($ending) }}</td><td></td><td></td>
+                <td class="r">{{ $fmt($totalReceipt) }}</td><td></td>
+                <td class="r">{{ $peso($totalReceiptCost) }}</td>
+                <td class="r">{{ $fmt($totalIssue) }}</td><td></td>
+                <td class="r">{{ $peso($totalIssueCost) }}</td>
+                <td class="r">{{ $fmt($ending) }}</td><td></td>
+                <td class="r">{{ $peso($endingValue) }}</td>
                 <td></td>
             </tr>
         </tbody>
