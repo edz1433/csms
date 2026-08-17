@@ -19,6 +19,33 @@ class Item extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (Item $item) {
+            if ($item->is_active ?? true) {
+                static::syncToOpenInventorySessions();
+            }
+        });
+
+        static::updated(function (Item $item) {
+            if (($item->is_active ?? true) && $item->wasChanged('is_active')) {
+                static::syncToOpenInventorySessions();
+            }
+        });
+    }
+
+    public static function syncToOpenInventorySessions(): void
+    {
+        $openSessions = InventorySession::whereIn('status', [
+            InventorySession::STATUS_DRAFT,
+            InventorySession::STATUS_ACTIVE,
+        ])->get();
+
+        foreach ($openSessions as $session) {
+            $session->seedLines();
+        }
+    }
+
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);

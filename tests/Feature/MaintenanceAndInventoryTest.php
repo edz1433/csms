@@ -489,4 +489,34 @@ class MaintenanceAndInventoryTest extends TestCase
         $this->assertStringContainsString('Counted qty', $html);
         $this->assertNotEquals($paper->id, $pen->id);
     }
+
+    public function test_creating_new_item_automatically_seeds_line_into_ongoing_inventory_session(): void
+    {
+        $admin = $this->admin();
+        $this->item(['name' => 'Existing Bond Paper']);
+
+        $session = $this->castInventory($admin);
+        $this->assertDatabaseCount('inventory_counts', 1);
+
+        $unit = Unit::first();
+        $this->actingAs($admin)->postJson(route('items.store'), [
+            'name' => 'Newly Added Stapler',
+            'unit_id' => $unit->id,
+            'unit_cost' => 150,
+            'on_hand_qty' => 25,
+            'is_active' => true,
+        ])->assertOk();
+
+        $newItem = Item::where('name', 'Newly Added Stapler')->first();
+        $this->assertNotNull($newItem);
+
+        $this->assertDatabaseCount('inventory_counts', 2);
+        $this->assertDatabaseHas('inventory_counts', [
+            'inventory_session_id' => $session->id,
+            'item_id' => $newItem->id,
+            'unit_id' => $unit->id,
+            'system_qty' => 25,
+            'counted_qty' => null,
+        ]);
+    }
 }
