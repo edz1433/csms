@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AccountTitle;
 use App\Models\Delivery;
 use App\Models\FundCluster;
+use App\Models\InspectionAcceptanceReport;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\Release;
@@ -12,6 +13,9 @@ use App\Models\Supplier;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Socialite\Contracts\Provider;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
 use Tests\TestCase;
 
 class ModuleCrudTest extends TestCase
@@ -70,6 +74,34 @@ class ModuleCrudTest extends TestCase
         $this->post('/login', ['email' => $user->email, 'password' => 'password'])
             ->assertRedirect();
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_google_login_authenticates_matching_active_user(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'ABRIL, EDWIN Jr. T.',
+            'email' => 'edzavril1@gmail.com',
+            'role' => User::ROLE_ADMIN,
+            'is_active' => true,
+            'access' => null,
+            'google_id' => null,
+        ]);
+
+        $googleUser = SocialiteUser::fake([
+            'id' => 'google-123',
+            'name' => $user->name,
+            'email' => 'edzavril1@gmail.com',
+            'email_verified' => true,
+        ]);
+
+        $provider = \Mockery::mock(Provider::class);
+        $provider->shouldReceive('user')->once()->andReturn($googleUser);
+        Socialite::shouldReceive('driver')->with('google')->once()->andReturn($provider);
+
+        $this->get(route('login.google.callback'))->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame('google-123', $user->fresh()->google_id);
     }
 
     /* ==================== Reference-data CRUD ==================== */
@@ -168,18 +200,20 @@ class ModuleCrudTest extends TestCase
         $unit = $this->unit();
 
         $this->postJson(route('items.store'), [
-            'name' => 'Ballpen', 'unit_id' => $unit->id, 'unit_cost' => 12.50, 'is_active' => true,
+            'name' => 'Ballpen', 'unit_id' => $unit->id, 'unit_cost' => 12.50, 'on_hand_qty' => 1.75, 'is_active' => true,
         ])->assertOk();
 
         $item = Item::first();
         $this->assertSame('CS00001', $item->stock_number); // auto-generated
         $this->assertEquals(12.50, (float) $item->unit_cost);
+        $this->assertEquals(1.75, (float) $item->on_hand_qty);
 
         $this->putJson(route('items.update', $item), [
-            'name' => 'Ballpen Blue', 'unit_id' => $unit->id, 'unit_cost' => 15,
+            'name' => 'Ballpen Blue', 'unit_id' => $unit->id, 'unit_cost' => 15, 'on_hand_qty' => 2.5,
         ])->assertOk();
         $this->assertDatabaseHas('items', ['id' => $item->id, 'name' => 'Ballpen Blue']);
         $this->assertEquals(15, (float) $item->fresh()->unit_cost);
+        $this->assertEquals(2.5, (float) $item->fresh()->on_hand_qty);
 
         $this->deleteJson(route('items.destroy', $item))->assertOk();
         $this->assertDatabaseMissing('items', ['id' => $item->id]);
@@ -266,7 +300,7 @@ class ModuleCrudTest extends TestCase
         $this->assertDatabaseCount('releases', 0);
     }
 
-    public function test_delivery_payment_toggle(): void
+    public function test_iar_creation_and_payment_toggle(): void
     {
         $admin = $this->admin();
         $this->actingAs($admin);
@@ -274,13 +308,26 @@ class ModuleCrudTest extends TestCase
             'po_number' => 'PO-9', 'received_by' => $admin->id, 'received_at' => now(),
         ]);
 
-        $this->patchJson(route('deliveries.payment', $delivery), ['or_number' => 'OR-123'])
+        $this->postJson(route('iars.store'), [
+            'delivery_id' => $delivery->id,
+            'iar_number' => 'IAR-2026-0001',
+            'iar_date' => now()->toDateString(),
+            'acceptance_status' => InspectionAcceptanceReport::STATUS_COMPLETE,
+            'accepted_by' => $admin->name,
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        $iar = InspectionAcceptanceReport::where('delivery_id', $delivery->id)->first();
+        $this->assertNotNull($iar);
+
+        $this->patchJson(route('iars.payment', $iar), ['or_number' => 'OR-123'])
             ->assertOk()->assertJson(['ok' => true, 'is_paid' => true]);
         $this->assertTrue($delivery->fresh()->is_paid);
+        $this->assertTrue($iar->fresh()->is_paid);
 
-        $this->patchJson(route('deliveries.payment', $delivery), [])
+        $this->patchJson(route('iars.payment', $iar->fresh()), [])
             ->assertOk()->assertJson(['is_paid' => false]);
         $this->assertFalse($delivery->fresh()->is_paid);
+        $this->assertFalse($iar->fresh()->is_paid);
     }
 
     /* ========================= Users CRUD ========================= */
@@ -319,6 +366,7 @@ class ModuleCrudTest extends TestCase
         $this->get(route('reports.index'))->assertOk();
         $this->get(route('reports.stock-card'))->assertOk();
         $this->get(route('reports.payment-status'))->assertOk();
+        $this->get(route('reports.iar'))->assertOk();
         $this->get(route('reports.rsmi'))->assertOk();
         $this->get(route('reports.ledger'))->assertOk();
     }

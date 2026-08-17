@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ReportScope;
 use App\Models\AccountTitle;
 use App\Models\Delivery;
 use App\Models\FundCluster;
+use App\Models\InspectionAcceptanceReport;
 use App\Models\Item;
 use App\Models\Release;
 use App\Models\ReleaseItem;
@@ -335,6 +336,35 @@ class ReportsController extends Controller
         ] + $this->scopeLists());
     }
 
+    /* ---------------- Inspection and Acceptance Reports ---------------- */
+
+    public function iar(Request $request)
+    {
+        [$from, $to] = $this->range($request);
+        [$fundClusterId, $accountTitleId] = $this->scopeFilters($request);
+        $rows = $this->iarRows($request, $from, $to);
+
+        return view('reports.iar', [
+            'rows' => $rows,
+            'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
+            'filters' => [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'supplier_id' => $request->input('supplier_id'),
+                'acceptance_status' => $request->input('acceptance_status'),
+                'payment_status' => $request->input('payment_status'),
+                'fund_cluster_id' => $fundClusterId,
+                'account_title_id' => $accountTitleId,
+            ],
+            'totals' => [
+                'total' => $rows->count(),
+                'paid' => $rows->where('is_paid', true)->count(),
+                'unpaid' => $rows->where('is_paid', false)->count(),
+                'partial' => $rows->where('acceptance_status', InspectionAcceptanceReport::STATUS_PARTIAL)->count(),
+            ],
+        ] + $this->scopeLists());
+    }
+
     /* ---------------- RSMI (Report of Supplies and Materials Issued, App. 64) ---------------- */
 
     public function rsmi(Request $request)
@@ -439,6 +469,7 @@ class ReportsController extends Controller
 
         [$filename, $headers, $rows] = match ($report) {
             'payment-status' => $this->paymentExportData($request, $from, $to),
+            'iar' => $this->iarExportData($request, $from, $to),
             'releases-summary' => $this->summaryExportData($from, $to),
             'stock-card' => $this->stockCardExportData($request),
             'stock-status' => $this->stockStatusExportData($request),
@@ -538,44 +569,83 @@ class ReportsController extends Controller
 
     private function paymentRows(Request $request, Carbon $from, Carbon $to)
     {
-        [$fundClusterId, $accountTitleId] = $this->scopeFilters($request);
-
-        return Delivery::query()
-            ->with(['fundCluster', 'supplier', 'receiver', 'payer'])
-            ->withCount('items')
-            ->whereBetween('received_at', [$from, $to])
-            ->when($fundClusterId, fn ($q) => $q->where('fund_cluster_id', $fundClusterId))
-            // A delivery matches an account title when any line item is booked
-            // against it.
-            ->when($accountTitleId, fn ($q) => $q->whereHas(
-                'items.item',
-                fn ($i) => $i->where('account_title_id', $accountTitleId)
-            ))
-            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+        return $this->baseIarReportQuery($request, $from, $to)
             ->when($request->input('status') === 'paid', fn ($q) => $q->where('is_paid', true))
             ->when($request->input('status') === 'unpaid', fn ($q) => $q->where('is_paid', false))
             ->get()
-            ->sortByDesc(fn ($d) => $d->received_at)
+            ->sortByDesc(fn ($iar) => $iar->iar_date)
             ->values();
     }
 
     private function paymentExportData(Request $request, Carbon $from, Carbon $to): array
     {
-        $rows = $this->paymentRows($request, $from, $to)->map(fn ($d) => [
-            $d->po_number,
-            $d->received_at?->format('Y-m-d'),
-            $d->fundCluster?->code,
-            $d->supplier?->name,
-            $d->items_count,
-            $d->receiver?->name,
-            $d->is_paid ? 'Paid' : 'Unpaid',
-            $d->or_number,
-            $d->paid_at?->format('Y-m-d'),
-            $d->payer?->name,
+        $rows = $this->paymentRows($request, $from, $to)->map(fn ($iar) => [
+            $iar->iar_number,
+            $iar->iar_date?->format('Y-m-d'),
+            $iar->delivery?->po_number,
+            $iar->delivery?->fundCluster?->code,
+            $iar->delivery?->supplier?->name,
+            $iar->delivery?->items?->count(),
+            $iar->delivery?->receiver?->name,
+            $iar->is_paid ? 'Paid' : 'Unpaid',
+            $iar->or_number,
+            $iar->paid_at?->format('Y-m-d'),
+            $iar->payer?->name,
         ])->toArray();
 
         return ['payment-status-'.now()->format('Ymd'),
-            ['PO Number', 'Date Received', 'Fund Cluster', 'Supplier', 'Items', 'Received By', 'Status', 'OR Number', 'Paid On', 'Paid By'],
+            ['IAR Number', 'IAR Date', 'PO Number', 'Fund Cluster', 'Supplier', 'Items', 'Received By', 'Status', 'OR Number', 'Paid On', 'Paid By'],
+            $rows];
+    }
+
+    private function iarRows(Request $request, Carbon $from, Carbon $to)
+    {
+        return $this->baseIarReportQuery($request, $from, $to)
+            ->when($request->filled('acceptance_status'), fn ($q) => $q->where('acceptance_status', $request->input('acceptance_status')))
+            ->when($request->input('payment_status') === 'paid', fn ($q) => $q->where('is_paid', true))
+            ->when($request->input('payment_status') === 'unpaid', fn ($q) => $q->where('is_paid', false))
+            ->get()
+            ->sortByDesc(fn ($iar) => $iar->iar_date)
+            ->values();
+    }
+
+    private function baseIarReportQuery(Request $request, Carbon $from, Carbon $to)
+    {
+        [$fundClusterId, $accountTitleId] = $this->scopeFilters($request);
+
+        return InspectionAcceptanceReport::query()
+            ->with(['delivery.fundCluster', 'delivery.supplier', 'delivery.receiver', 'delivery.items.item', 'payer', 'creator'])
+            ->whereBetween('iar_date', [$from->toDateString(), $to->toDateString()])
+            ->when($fundClusterId, fn ($q) => $q->whereHas('delivery', fn ($d) => $d->where('fund_cluster_id', $fundClusterId)))
+            ->when($accountTitleId, fn ($q) => $q->whereHas(
+                'delivery.items.item',
+                fn ($i) => $i->where('account_title_id', $accountTitleId)
+            ))
+            ->when($request->filled('supplier_id'), fn ($q) => $q->whereHas(
+                'delivery',
+                fn ($d) => $d->where('supplier_id', $request->integer('supplier_id'))
+            ));
+    }
+
+    private function iarExportData(Request $request, Carbon $from, Carbon $to): array
+    {
+        $rows = $this->iarRows($request, $from, $to)->map(fn ($iar) => [
+            $iar->iar_number,
+            $iar->iar_date?->format('Y-m-d'),
+            $iar->delivery?->po_number,
+            $iar->delivery?->supplier?->name,
+            $iar->delivery?->fundCluster?->code,
+            $iar->invoice_number,
+            $iar->invoice_date?->format('Y-m-d'),
+            ucfirst($iar->acceptance_status),
+            $iar->isComplete() ? '' : number_format((float) $iar->partial_quantity, 2),
+            $iar->is_paid ? 'Paid' : 'Unpaid',
+            $iar->or_number,
+            $iar->creator?->name,
+        ])->toArray();
+
+        return ['iar-'.$from->format('Ymd').'-'.$to->format('Ymd'),
+            ['IAR Number', 'IAR Date', 'PO Number', 'Supplier', 'Fund Cluster', 'Invoice Number', 'Invoice Date', 'Acceptance', 'Partial Qty', 'Payment', 'OR Number', 'Created By'],
             $rows];
     }
 

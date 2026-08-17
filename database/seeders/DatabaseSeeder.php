@@ -27,37 +27,55 @@ class DatabaseSeeder extends Seeder
 
     private function seedUsers(): void
     {
+        User::whereIn('email', [
+            'admin@cpsu.edu.ph',
+            'supply@cpsu.edu.ph',
+            'accounting@cpsu.edu.ph',
+        ])->update(['is_active' => false]);
+
         User::updateOrCreate(
-            ['email' => 'admin@cpsu.edu.ph'],
+            ['email' => 'edzavril1@gmail.com'],
             [
-                'name' => 'System Administrator',
-                'password' => Hash::make('password'),
+                'name' => 'ABRIL, EDWIN Jr. T.',
+                'password' => Hash::make('adminedz@2026'),
                 'role' => User::ROLE_ADMIN,
                 'access' => null,
                 'is_active' => true,
+                'email_verified_at' => now(),
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'supply@cpsu.edu.ph'],
-            [
-                'name' => 'Supply Staff',
-                'password' => Hash::make('password'),
-                'role' => User::ROLE_SUPPLY,
-                'access' => ['dashboard', 'items', 'receiving', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'reports'],
-                'is_active' => true,
-            ]
-        );
+        $supplyAccess = ['dashboard', 'items', 'receiving', 'iars', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'reports', 'inventory'];
+
+        foreach ([
+            ['name' => 'MAMAR, RAZEL C.', 'email' => 'rmamar@cpsu.edu.ph'],
+            ['name' => 'LLAMAS, MA. SOCORRO T.', 'email' => 'mallamas@cpsu.edu.ph'],
+            ['name' => 'TIANZON, CARLO D.', 'email' => 'ctianzon@cpsu.edu.ph'],
+            ['name' => 'JAREÑO, JOHN D.', 'email' => 'jjareno@cpsu.edu.ph'],
+        ] as $staff) {
+            User::updateOrCreate(
+                ['email' => $staff['email']],
+                [
+                    'name' => $staff['name'],
+                    'password' => Hash::make('password'),
+                    'role' => User::ROLE_SUPPLY,
+                    'access' => $supplyAccess,
+                    'is_active' => true,
+                    'email_verified_at' => now(),
+                ]
+            );
+        }
 
         // Accounting tags supplier payments in Receiving now (not Releasing).
         User::updateOrCreate(
-            ['email' => 'accounting@cpsu.edu.ph'],
+            ['email' => 'cmbarcoma@cpsu.edu.ph'],
             [
-                'name' => 'Accounting Staff',
+                'name' => 'BARCOMA, CRISTA MAY A.',
                 'password' => Hash::make('password'),
                 'role' => User::ROLE_ACCOUNTING,
-                'access' => ['dashboard', 'receiving', 'reports'],
+                'access' => ['dashboard', 'receiving', 'iars', 'reports'],
                 'is_active' => true,
+                'email_verified_at' => now(),
             ]
         );
     }
@@ -175,23 +193,34 @@ class DatabaseSeeder extends Seeder
             'cart' => ['Cartridge', 'cart'],
             'pad' => ['Pad', 'pad'],
             'ream' => ['Ream', 'ream'],
-            'length' => ['Length', 'length'],
+            'length' => ['Length', 'len'],
             'book' => ['Book', 'book'],
-            'bundle' => ['Bundle', 'bundle'],
+            'bundle' => ['Bundle', 'bdl'],
             default => ['Piece', 'pcs'],
         };
     }
 
-    /** Units are derived from the distinct (normalized) units used by the items. */
+    /** Seed every canonical unit explicitly so abbreviations stay consistent. */
     private function seedUnits(): void
     {
-        $seen = [];
-        foreach ($this->itemRows() as [$name, $rawUnit, $qty]) {
-            [$uName, $uAbbr] = $this->canonicalUnit($rawUnit);
-            $seen[$uName] = $uAbbr;
-        }
-        foreach ($seen as $uName => $uAbbr) {
-            Unit::updateOrCreate(['name' => $uName], ['abbreviation' => $uAbbr]);
+        foreach ([
+            ['name' => 'Piece', 'abbreviation' => 'pcs'],
+            ['name' => 'Stub', 'abbreviation' => 'stub'],
+            ['name' => 'Bottle', 'abbreviation' => 'btl'],
+            ['name' => 'Pack', 'abbreviation' => 'pack'],
+            ['name' => 'Box', 'abbreviation' => 'box'],
+            ['name' => 'Set', 'abbreviation' => 'set'],
+            ['name' => 'Roll', 'abbreviation' => 'roll'],
+            ['name' => 'Jar', 'abbreviation' => 'jar'],
+            ['name' => 'Unit', 'abbreviation' => 'unit'],
+            ['name' => 'Cartridge', 'abbreviation' => 'cart'],
+            ['name' => 'Pad', 'abbreviation' => 'pad'],
+            ['name' => 'Ream', 'abbreviation' => 'ream'],
+            ['name' => 'Length', 'abbreviation' => 'len'],
+            ['name' => 'Book', 'abbreviation' => 'book'],
+            ['name' => 'Bundle', 'abbreviation' => 'bdl'],
+        ] as $unit) {
+            Unit::updateOrCreate(['name' => $unit['name']], ['abbreviation' => $unit['abbreviation']]);
         }
     }
 
@@ -202,7 +231,7 @@ class DatabaseSeeder extends Seeder
         $formsInv = AccountTitle::where('rca_code', '1040403000')->value('id');
 
         $seq = 0;
-        foreach ($this->itemRows() as [$name, $rawUnit, $qty]) {
+        foreach ($this->itemRows() as [$name, $rawUnit]) {
             $seq++;
             [$uName] = $this->canonicalUnit($rawUnit);
 
@@ -220,7 +249,7 @@ class DatabaseSeeder extends Seeder
                     'name' => $name,
                     'unit_id' => $units[$uName] ?? $units->first(),
                     'account_title_id' => $account,
-                    'on_hand_qty' => $qty,
+                    'on_hand_qty' => 0,
                     'unit_cost' => $unitCost,
                     'is_active' => true,
                 ]
@@ -229,7 +258,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @return array<int, array{0:string,1:string,2:float}>  [name, rawUnit, qty]
+     * @return array<int, array{0:string,1:string,2:float}>  [name, rawUnit, legacyQty]
      */
     private function itemRows(): array
     {

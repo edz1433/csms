@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\InspectionAcceptanceReportController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LedgerController;
 use App\Http\Controllers\ReleaseController;
@@ -33,8 +34,10 @@ Route::get('/', fn () => Auth::check()
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
-    Route::get('/', [LoginController::class, 'showLogin'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
+    Route::post('/login', [LoginController::class, 'login'])->name('login.submit');
+    Route::get('/login/google', [LoginController::class, 'redirectToGoogle'])->name('login.google');
+    Route::get('/login/google/callback', [LoginController::class, 'handleGoogleCallback'])->name('login.google.callback');
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])
@@ -45,8 +48,8 @@ Route::post('/logout', [LoginController::class, 'logout'])
 | Authenticated application
 |--------------------------------------------------------------------------
 | Every mutating request by accounting_staff is blocked by
-| deny.accounting.write EXCEPT the payment-status toggle, which is registered
-| outside this group (see Releasing routes). Each page is additionally gated
+| deny.accounting.write EXCEPT the IAR payment toggle, which is registered
+| outside this group. Each page is additionally gated
 | by its page key via the `page` middleware.
 */
 Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
@@ -79,6 +82,15 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
         Route::post('/deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
         Route::get('/deliveries/{delivery}', [DeliveryController::class, 'show'])->name('deliveries.show');
+    });
+
+    /* ---- Inspection and Acceptance Reports (IAR / Appendix 62) ---- */
+
+    Route::middleware('page:iars')->group(function () {
+        Route::get('/iars', [InspectionAcceptanceReportController::class, 'index'])->name('iars.index');
+        Route::get('/iars/create', [InspectionAcceptanceReportController::class, 'create'])->name('iars.create');
+        Route::post('/iars', [InspectionAcceptanceReportController::class, 'store'])->name('iars.store');
+        Route::get('/iars/{iar}', [InspectionAcceptanceReportController::class, 'show'])->name('iars.show');
     });
 
     /* ---- Releasing (Phase 6) ---- */
@@ -114,6 +126,7 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/reports/account-summary', [ReportsController::class, 'accountSummary'])->name('reports.account-summary');
         Route::get('/reports/account-summary/pdf', [ReportsController::class, 'accountSummaryPdf'])->name('reports.account-summary.pdf');
         Route::get('/reports/payment-status', [ReportsController::class, 'paymentStatus'])->name('reports.payment-status');
+        Route::get('/reports/iar', [ReportsController::class, 'iar'])->name('reports.iar');
         Route::get('/reports/rsmi', [ReportsController::class, 'rsmi'])->name('reports.rsmi');
         Route::get('/reports/rsmi/pdf', [ReportsController::class, 'rsmiPdf'])->name('reports.rsmi.pdf');
         Route::get('/reports/ledger', [LedgerController::class, 'index'])->name('reports.ledger');
@@ -191,11 +204,11 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Supplier-payment toggle on a delivery — the ONE write exception for accounting.
+| IAR payment toggle - the ONE write exception for accounting.
 |--------------------------------------------------------------------------
-| Registered OUTSIDE the deny.accounting.write group. Allowed for
-| administrator + accounting_staff only. This is where the OR is recorded.
+| Registered OUTSIDE the deny.accounting.write group. Accounting can mark paid
+| only from an Inspection and Acceptance Report created by Supply.
 */
-Route::middleware(['auth', 'page:receiving', 'role:administrator,accounting_staff'])
-    ->patch('/deliveries/{delivery}/payment', [DeliveryController::class, 'togglePayment'])
-    ->name('deliveries.payment');
+Route::middleware(['auth', 'page:iars', 'role:administrator,accounting_staff'])
+    ->patch('/iars/{iar}/payment', [InspectionAcceptanceReportController::class, 'togglePayment'])
+    ->name('iars.payment');

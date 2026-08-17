@@ -6,6 +6,7 @@ use App\Http\Controllers\ReportsController;
 use App\Models\AccountTitle;
 use App\Models\Delivery;
 use App\Models\FundCluster;
+use App\Models\InspectionAcceptanceReport;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\Release;
@@ -71,6 +72,13 @@ class ReportFiltersTest extends TestCase
             $delivery->items()->create([
                 'item_id' => $item->id, 'unit_id' => $unit->id, 'quantity' => 10, 'unit_cost' => $item->unit_cost,
             ]);
+            InspectionAcceptanceReport::create([
+                'delivery_id' => $delivery->id,
+                'iar_number' => 'IAR-'.$po,
+                'iar_date' => now()->toDateString(),
+                'acceptance_status' => InspectionAcceptanceReport::STATUS_COMPLETE,
+                'created_by' => $this->admin->id,
+            ]);
         }
 
         // One release per fund cluster, mirroring the deliveries.
@@ -93,7 +101,7 @@ class ReportFiltersTest extends TestCase
         $this->actingAs($this->admin);
 
         foreach (['reports.index', 'reports.stock-card', 'reports.stock-status', 'reports.account-summary',
-            'reports.payment-status', 'reports.rsmi', 'reports.ledger'] as $route) {
+            'reports.payment-status', 'reports.iar', 'reports.rsmi', 'reports.ledger'] as $route) {
             $this->get(route($route))
                 ->assertOk()
                 ->assertSee('Fund Cluster')

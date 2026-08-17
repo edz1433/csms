@@ -1,4 +1,4 @@
-{{-- Reports hub tab bar. Pass $active as one of: summary | stock-card | payment-status | ledger --}}
+{{-- Reports hub tab bar. Pass $active as one of the tab keys below. --}}
 @php
     $tabs = [
         ['key' => 'ris',            'route' => 'reports.index',          'label' => 'Requisition & Issue Slip', 'icon' => 'file-text'],
@@ -6,6 +6,7 @@
         ['key' => 'stock-status',   'route' => 'reports.stock-status',   'label' => 'Stock Status',     'icon' => 'boxes'],
         ['key' => 'account-summary', 'route' => 'reports.account-summary', 'label' => 'Inventory Summary', 'icon' => 'calendar-range'],
         ['key' => 'payment-status', 'route' => 'reports.payment-status', 'label' => 'Payment Status',   'icon' => 'wallet'],
+        ['key' => 'iar',            'route' => 'reports.iar',            'label' => 'IAR',              'icon' => 'clipboard-check'],
         ['key' => 'rsmi',           'route' => 'reports.rsmi',           'label' => 'RSMI (Issued)',    'icon' => 'clipboard-list'],
         ['key' => 'ledger',         'route' => 'reports.ledger',         'label' => 'Supply Ledger',    'icon' => 'notebook-text'],
     ];

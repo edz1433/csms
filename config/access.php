@@ -16,6 +16,7 @@ return [
         'items',
         'inventory',         // Physical inventory (QR stock take)
         'receiving',
+        'iars',
         'releasing',
         'suppliers',
         'locations',        // Campuses/Offices
@@ -32,6 +33,7 @@ return [
         'items'          => 'Items / Stocks',
         'inventory'      => 'Physical Inventory',
         'receiving'      => 'Receiving',
+        'iars'           => 'IAR',
         'releasing'      => 'Releasing',
         'suppliers'      => 'Suppliers',
         'locations'      => 'Campuses/Offices',

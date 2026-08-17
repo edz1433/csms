@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Delivery extends Model
@@ -42,5 +43,10 @@ class Delivery extends Model
     public function items(): HasMany
     {
         return $this->hasMany(DeliveryItem::class);
+    }
+
+    public function iar(): HasOne
+    {
+        return $this->hasOne(InspectionAcceptanceReport::class);
     }
 }

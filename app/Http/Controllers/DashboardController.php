@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Delivery;
+use App\Models\InspectionAcceptanceReport;
 use App\Models\Item;
 use App\Models\Release;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class DashboardController extends Controller
             'on_hand_units' => (float) Item::sum('on_hand_qty'),
             'releases_in_range' => Release::whereBetween('released_at', [$from, $to])->count(),
             'deliveries_in_range' => Delivery::whereBetween('received_at', [$from, $to])->count(),
-            'pending_payments' => Delivery::where('is_paid', false)->count(),
+            'pending_payments' => InspectionAcceptanceReport::where('is_paid', false)->count(),
         ];
 
         $trend = $this->trend($from, $to, $byMonth);
@@ -40,8 +41,8 @@ class DashboardController extends Controller
             'byAccount' => $this->byAccount($from, $to),
             'topItems' => $this->topItems($from, $to),
             'payment' => [
-                'paid' => Delivery::whereBetween('received_at', [$from, $to])->where('is_paid', true)->count(),
-                'unpaid' => Delivery::whereBetween('received_at', [$from, $to])->where('is_paid', false)->count(),
+                'paid' => InspectionAcceptanceReport::whereBetween('iar_date', [$from->toDateString(), $to->toDateString()])->where('is_paid', true)->count(),
+                'unpaid' => InspectionAcceptanceReport::whereBetween('iar_date', [$from->toDateString(), $to->toDateString()])->where('is_paid', false)->count(),
             ],
             'lowStock' => Item::with('unit')->where('is_active', true)->orderBy('on_hand_qty')->limit(6)->get(),
             'recentReleases' => Release::with('location')->latest('released_at')->limit(6)->get(),

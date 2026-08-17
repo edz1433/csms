@@ -170,6 +170,7 @@ class ItemController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateData($request);
+        $data['on_hand_qty'] = $data['on_hand_qty'] ?? 0;
 
         // Item code is automated (CS00001, CS00002, …) — never taken from input.
         // Retry a couple of times in case two items are created back-to-back.
@@ -191,7 +192,10 @@ class ItemController extends Controller
     public function update(Request $request, Item $item)
     {
         // The item code is fixed once assigned; only the other fields change.
-        $item->update($this->validateData($request));
+        $data = $this->validateData($request);
+        $data['on_hand_qty'] = $data['on_hand_qty'] ?? 0;
+
+        $item->update($data);
 
         return $this->ok($request, 'Item updated.');
     }
@@ -242,6 +246,7 @@ class ItemController extends Controller
             'unit_id' => ['required', 'exists:units,id'],
             'account_title_id' => ['nullable', 'exists:account_titles,id'],
             'unit_cost' => ['nullable', 'numeric', 'min:0'],
+            'on_hand_qty' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
     }

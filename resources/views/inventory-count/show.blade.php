@@ -8,6 +8,8 @@
 <div x-data="inventorySheet({
         statusUrl: @js(route('inventory.status')),
         countUrl: @js(route('inventory.count')),
+        castUrl: @js(route('inventory.cast', $session)),
+        closeUrl: @js(route('inventory.close', $session)),
         sessionId: {{ $session->id }},
         active: {{ $session->isActive() ? 'true' : 'false' }},
         progress: @js($progress),
@@ -339,7 +341,7 @@
           confirmText: reopening ? 'Yes, open it again' : 'Yes, start counting',
         }).then(function (r) {
           if (!r.isConfirmed) return;
-          $.ajax({ url: '/inventory/' + cfg.sessionId + '/cast', method: 'PATCH' })
+          $.ajax({ url: cfg.castUrl, method: 'PATCH' })
             .done(function () { CPSU.toast('Counting is open.', 'success'); setTimeout(function () { location.reload(); }, 700); })
             .fail(function (x) { CPSU.toast((x.responseJSON && x.responseJSON.message) || 'Could not cast.', 'error'); });
         });
@@ -352,7 +354,7 @@
           confirmText: 'Close inventory',
         }).then(function (r) {
           if (!r.isConfirmed) return;
-          $.ajax({ url: '/inventory/' + cfg.sessionId + '/close', method: 'PATCH' })
+          $.ajax({ url: cfg.closeUrl, method: 'PATCH' })
             .done(function () { CPSU.toast('Inventory closed.', 'success'); setTimeout(function () { location.reload(); }, 600); })
             .fail(function () { CPSU.toast('Could not close the inventory.', 'error'); });
         });

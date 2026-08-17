@@ -27,7 +27,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('login') }}" @submit="loading = true" class="space-y-4">
+        <form method="POST" action="{{ route('login.submit') }}" @submit="loading = true" class="space-y-4">
             @csrf
             <div>
                 <label for="email" class="block text-sm font-medium text-cpsu-black mb-1">Email</label>
@@ -68,6 +68,18 @@
                 </span>
             </button>
         </form>
+
+        <div class="my-5 flex items-center gap-3">
+            <div class="h-px flex-1 bg-cpsu-border"></div>
+            <span class="text-[11px] font-semibold uppercase text-gray-400">or</span>
+            <div class="h-px flex-1 bg-cpsu-border"></div>
+        </div>
+
+        <a href="{{ route('login.google') }}"
+           class="w-full rounded-lg border border-cpsu-border bg-white hover:bg-cpsu-bg text-cpsu-black font-semibold py-2.5 transition-all active:scale-95 flex items-center justify-center gap-2">
+            <i data-lucide="chrome" class="w-4 h-4 text-cpsu-green"></i>
+            Sign in with Google
+        </a>
     </div>
 
     <p class="text-center text-[11px] text-gray-400 mt-6">

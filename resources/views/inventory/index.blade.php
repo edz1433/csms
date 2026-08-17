@@ -13,7 +13,7 @@
     :ajax-url="route('items.index')"
     :can-write="auth()->user()->isAdministrator()"
     blurb="On-hand quantity is the authoritative stock level, updated by Receiving and Releasing."
-    :blank="['id' => null, 'stock_number' => '', 'name' => '', 'description' => '', 'unit_id' => '', 'account_title_id' => '', 'unit_cost' => '', 'is_active' => true]"
+    :blank="['id' => null, 'stock_number' => '', 'name' => '', 'description' => '', 'unit_id' => '', 'account_title_id' => '', 'unit_cost' => '', 'on_hand_qty' => 0, 'is_active' => true]"
     :order="[[1, 'asc']]"
     :columns="[
         ['data' => 'stock_number', 'title' => 'Stock No.'],
@@ -62,6 +62,13 @@
                    class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm outline-none focus:border-cpsu-green focus:ring-2 focus:ring-cpsu-green/20"
                    placeholder="0.00">
             <p class="text-xs text-gray-400">Used to price issuances on the RSMI report.</p>
+        </div>
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-cpsu-black">On Hand</label>
+            <input type="number" step="0.01" min="0" inputmode="decimal" x-model="form.on_hand_qty"
+                   class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm outline-none focus:border-cpsu-green focus:ring-2 focus:ring-cpsu-green/20"
+                   placeholder="0.00">
+            <p class="text-xs text-gray-400">Accepts decimal quantities.</p>
         </div>
     </div>
 

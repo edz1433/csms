@@ -9,6 +9,8 @@
         statusUrl: @js(route('inventory.status')),
         storeUrl: @js(route('inventory.store')),
         labelsUrl: @js(route('inventory.labels')),
+        castUrlTemplate: @js(route('inventory.cast', ['session' => '__ID__'])),
+        closeUrlTemplate: @js(route('inventory.close', ['session' => '__ID__'])),
         itemCount: {{ $itemCount }},
         active: {{ $active ? 'true' : 'false' }},
         progress: @js($progress ?? ['counted' => 0, 'total' => 0, 'remaining' => 0, 'variance' => 0, 'percent' => 0]),
@@ -290,7 +292,7 @@
           confirmText: reopening ? 'Yes, open it again' : 'Yes, start counting',
         }).then(function (r) {
           if (!r.isConfirmed) return;
-          $.ajax({ url: '/inventory/' + id + '/cast', method: 'PATCH' })
+          $.ajax({ url: cfg.castUrlTemplate.replace('__ID__', id), method: 'PATCH' })
             .done(function (d) {
               CPSU.toast(d.reopened
                 ? 'Inventory re-opened — counting is live again.'
@@ -307,7 +309,7 @@
           confirmText: 'Close inventory',
         }).then(function (r) {
           if (!r.isConfirmed) return;
-          $.ajax({ url: '/inventory/' + id + '/close', method: 'PATCH' })
+          $.ajax({ url: cfg.closeUrlTemplate.replace('__ID__', id), method: 'PATCH' })
             .done(function () { CPSU.toast('Inventory closed.', 'success'); setTimeout(function () { location.reload(); }, 600); })
             .fail(function () { CPSU.toast('Could not close the inventory.', 'error'); });
         });

@@ -224,6 +224,41 @@ class MaintenanceAndInventoryTest extends TestCase
         $this->assertDatabaseHas('inventory_counts', ['item_id' => $item->id, 'counted_qty' => 90, 'system_qty' => 100]);
     }
 
+    public function test_counting_accepts_decimal_quantities(): void
+    {
+        $staff = $this->staff();
+        $item = $this->item(['on_hand_qty' => 10.5]);
+
+        $this->castInventory($staff);
+
+        $this->actingAs($staff)->postJson(route('inventory.count'), [
+            'item_id' => $item->id, 'unit_id' => $item->unit_id, 'counted_qty' => 7.25,
+        ])->assertOk()->assertJson([
+            'count' => ['counted_qty' => 7.25, 'system_qty' => 10.5, 'variance' => -3.25],
+        ]);
+
+        $this->assertDatabaseHas('inventory_counts', [
+            'item_id' => $item->id,
+            'counted_qty' => 7.25,
+            'system_qty' => 10.5,
+        ]);
+    }
+
+    public function test_inventory_cast_buttons_use_generated_route_urls(): void
+    {
+        $staff = $this->staff();
+        $this->item();
+
+        $this->actingAs($staff)->postJson(route('inventory.store'))->assertOk();
+
+        $html = $this->actingAs($staff)->get(route('inventory.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('castUrlTemplate', $html);
+        $this->assertStringContainsString('closeUrlTemplate', $html);
+        $this->assertStringNotContainsString("'/inventory/' + id + '/cast'", $html);
+        $this->assertStringNotContainsString("'/inventory/' + id + '/close'", $html);
+    }
+
     public function test_counting_can_change_the_items_unit(): void
     {
         $staff = $this->staff();

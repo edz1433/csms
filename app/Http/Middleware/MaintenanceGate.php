@@ -25,7 +25,7 @@ class MaintenanceGate
 
         $user = $request->user();
 
-        if ($user?->isAdministrator() || $request->routeIs('login', 'logout')) {
+        if ($user?->isAdministrator() || $request->routeIs('login', 'login.google', 'login.google.callback', 'logout')) {
             return $next($request);
         }
 

@@ -10,6 +10,7 @@
         ['key' => 'items',          'route' => 'items.index',          'label' => 'Items / Stocks',   'icon' => 'package'],
         ['key' => 'inventory',      'route' => 'inventory.index',      'label' => 'Physical Inventory', 'icon' => 'scan-line'],
         ['key' => 'receiving',      'route' => 'deliveries.index',     'label' => 'Receiving',        'icon' => 'truck'],
+        ['key' => 'iars',           'route' => 'iars.index',           'label' => 'IAR',              'icon' => 'clipboard-check'],
         ['key' => 'releasing',      'route' => 'releases.index',       'label' => 'Releasing',        'icon' => 'send'],
         ['key' => 'suppliers',      'route' => 'suppliers.index',      'label' => 'Suppliers',        'icon' => 'building-2'],
         ['key' => 'locations',      'route' => 'locations.index',      'label' => 'Campuses/Offices', 'icon' => 'map-pin'],

@@ -10,9 +10,9 @@ class DenyWriteForAccountingStaff
 {
     /**
      * Accounting Staff is view-only everywhere. This blocks every mutating
-     * verb (POST/PUT/PATCH/DELETE) for that role. The single write exception —
-     * the payment-status toggle — is NOT wrapped by this middleware, so it
-     * stays reachable (see routes/web.php).
+     * verb (POST/PUT/PATCH/DELETE) for that role. The single write exception -
+     * the IAR payment toggle - is not wrapped by this middleware, so it stays
+     * reachable (see routes/web.php).
      */
     public function handle(Request $request, Closure $next): Response
     {
