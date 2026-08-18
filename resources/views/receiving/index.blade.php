@@ -6,7 +6,7 @@
 
 @section('content')
 <div class="flex items-center justify-between gap-3 mb-4">
-    <p class="text-sm text-gray-500 hidden sm:block">Each delivery increases on-hand stock for its item lines.</p>
+    <p class="text-sm text-gray-500 hidden sm:block">Each delivery increases on-hand stock for its item lines. Partial shipments are topped up by editing the same delivery.</p>
     <x-action-guard>
         <x-ui.button variant="primary" icon="plus" :href="route('deliveries.create')">New Delivery</x-ui.button>
     </x-action-guard>
@@ -23,11 +23,12 @@
       { data: 'po_number', title: 'PO Number' },
       { data: 'supplier', title: 'Supplier' },
       { data: 'lines', title: 'Items', orderable: false, searchable: false },
+      { data: 'status', title: 'Delivery', orderable: false, searchable: false, className: 'text-center' },
       { data: 'iar', title: 'IAR', orderable: false, searchable: false, className: 'text-center' },
       { data: 'payment', title: 'Payment', orderable: false, searchable: false, className: 'text-center' },
       { data: 'received_at', title: 'Date Received' },
       { data: 'action', title: '', orderable: false, searchable: false, className: 'text-right' },
-    ], { order: [[5, 'desc']] });
+    ], { order: [[6, 'desc']] });
   });
 </script>
 @endpush

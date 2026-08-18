@@ -20,6 +20,31 @@ class Delivery extends Model
         'paid_at' => 'datetime',
     ];
 
+    /**
+     * A delivery is still "partial" while any line has an ordered quantity that
+     * has not been fully received yet. Lines without an ordered quantity are
+     * treated as complete — nothing to wait for.
+     */
+    public function isPartial(): bool
+    {
+        return $this->items->contains(fn (DeliveryItem $line) => ! $line->isFullyReceived());
+    }
+
+    public function outstandingQty(): float
+    {
+        return (float) $this->items->sum(fn (DeliveryItem $line) => $line->balanceQty());
+    }
+
+    /**
+     * Deliveries stay editable so the balance of a partial shipment can be
+     * added later, but only until accounting has paid them — a paid delivery
+     * backs an OR and must not move.
+     */
+    public function isEditable(): bool
+    {
+        return ! $this->is_paid;
+    }
+
     public function fundCluster(): BelongsTo
     {
         return $this->belongsTo(FundCluster::class);

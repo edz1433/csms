@@ -254,6 +254,195 @@ class ModuleCrudTest extends TestCase
         $this->assertDatabaseHas('delivery_items', ['item_id' => $item->id, 'quantity' => 20, 'unit_cost' => 50]);
     }
 
+    /* ================ Partial deliveries (top-up / edit) ================ */
+
+    public function test_partial_delivery_can_be_topped_up_later_and_only_the_difference_hits_stock(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 0, 'unit_cost' => 10]);
+
+        // Day 1: 100 ordered, only 40 arrived.
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-02',
+            'received_at' => now()->subWeek()->toDateString(),
+            'lines' => [[
+                'item_id' => $item->id, 'unit_id' => $item->unit_id,
+                'ordered_qty' => 100, 'quantity' => 40, 'unit_cost' => 50,
+                'received_at' => now()->subWeek()->toDateString(),
+            ]],
+        ])->assertOk();
+
+        $delivery = Delivery::with('items')->firstOrFail();
+        $line = $delivery->items->first();
+
+        $this->assertEquals(40, (float) $item->fresh()->on_hand_qty);
+        $this->assertTrue($delivery->isPartial());
+        $this->assertEquals(60, $delivery->outstandingQty());
+
+        // Day 8: the balance arrives — the running total becomes 100.
+        $this->putJson(route('deliveries.update', $delivery), [
+            'po_number' => 'PO-2026-02',
+            'received_at' => now()->subWeek()->toDateString(),
+            'lines' => [[
+                'id' => $line->id, 'item_id' => $item->id, 'unit_id' => $item->unit_id,
+                'ordered_qty' => 100, 'quantity' => 100, 'unit_cost' => 50,
+                'received_at' => now()->toDateString(),
+            ]],
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        $this->assertEquals(100, (float) $item->fresh()->on_hand_qty); // only +60 added
+        $this->assertDatabaseCount('delivery_items', 1);               // same line, topped up
+        $this->assertFalse($delivery->fresh()->load('items')->isPartial());
+        $this->assertEquals(now()->toDateString(), $line->fresh()->received_at->toDateString());
+    }
+
+    public function test_delivery_update_can_add_a_line_that_arrived_later(): void
+    {
+        $this->actingAs($this->admin());
+        $first = $this->item(['on_hand_qty' => 0]);
+        // Reuse the first item's unit/account title — the helper would create
+        // duplicates of both.
+        $second = Item::create([
+            'stock_number' => 'CS00002', 'name' => 'Ballpen', 'on_hand_qty' => 0, 'unit_cost' => 20,
+            'unit_id' => $first->unit_id, 'account_title_id' => $first->account_title_id, 'is_active' => true,
+        ]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-03',
+            'received_at' => now()->toDateString(),
+            'lines' => [['item_id' => $first->id, 'unit_id' => $first->unit_id, 'quantity' => 5, 'unit_cost' => 10]],
+        ])->assertOk();
+
+        $delivery = Delivery::with('items')->firstOrFail();
+
+        $this->putJson(route('deliveries.update', $delivery), [
+            'po_number' => 'PO-2026-03',
+            'received_at' => now()->toDateString(),
+            'lines' => [
+                ['id' => $delivery->items->first()->id, 'item_id' => $first->id, 'unit_id' => $first->unit_id, 'quantity' => 5, 'unit_cost' => 10],
+                ['item_id' => $second->id, 'unit_id' => $second->unit_id, 'quantity' => 7, 'unit_cost' => 20],
+            ],
+        ])->assertOk();
+
+        $this->assertEquals(5, (float) $first->fresh()->on_hand_qty);   // untouched
+        $this->assertEquals(7, (float) $second->fresh()->on_hand_qty);  // newly received
+        $this->assertDatabaseCount('delivery_items', 2);
+    }
+
+    public function test_delivery_update_hands_stock_back_when_a_line_is_removed(): void
+    {
+        $this->actingAs($this->admin());
+        $keep = $this->item(['on_hand_qty' => 0]);
+        $drop = Item::create([
+            'stock_number' => 'CS00002', 'name' => 'Ballpen', 'on_hand_qty' => 0, 'unit_cost' => 20,
+            'unit_id' => $keep->unit_id, 'account_title_id' => $keep->account_title_id, 'is_active' => true,
+        ]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-04',
+            'received_at' => now()->toDateString(),
+            'lines' => [
+                ['item_id' => $keep->id, 'unit_id' => $keep->unit_id, 'quantity' => 5, 'unit_cost' => 10],
+                ['item_id' => $drop->id, 'unit_id' => $drop->unit_id, 'quantity' => 9, 'unit_cost' => 20],
+            ],
+        ])->assertOk();
+
+        $delivery = Delivery::with('items')->firstOrFail();
+        $keepLine = $delivery->items->firstWhere('item_id', $keep->id);
+
+        $this->putJson(route('deliveries.update', $delivery), [
+            'po_number' => 'PO-2026-04',
+            'received_at' => now()->toDateString(),
+            'lines' => [
+                ['id' => $keepLine->id, 'item_id' => $keep->id, 'unit_id' => $keep->unit_id, 'quantity' => 5, 'unit_cost' => 10],
+            ],
+        ])->assertOk();
+
+        $this->assertEquals(0, (float) $drop->fresh()->on_hand_qty);
+        $this->assertDatabaseCount('delivery_items', 1);
+    }
+
+    public function test_delivery_update_rejects_reduction_below_released_stock(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 0, 'unit_cost' => 10]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-05',
+            'received_at' => now()->toDateString(),
+            'lines' => [['item_id' => $item->id, 'unit_id' => $item->unit_id, 'quantity' => 10, 'unit_cost' => 10]],
+        ])->assertOk();
+
+        $delivery = Delivery::with('items')->firstOrFail();
+        $item->update(['on_hand_qty' => 2]); // 8 already released
+
+        $this->putJson(route('deliveries.update', $delivery), [
+            'po_number' => 'PO-2026-05',
+            'received_at' => now()->toDateString(),
+            'lines' => [[
+                'id' => $delivery->items->first()->id, 'item_id' => $item->id,
+                'unit_id' => $item->unit_id, 'quantity' => 1, 'unit_cost' => 10,
+            ]],
+        ])->assertStatus(422)->assertJsonValidationErrors('lines');
+
+        $this->assertEquals(2, (float) $item->fresh()->on_hand_qty);        // rolled back
+        $this->assertEquals(10, (float) $delivery->items->first()->fresh()->quantity);
+    }
+
+    public function test_paid_delivery_can_no_longer_be_edited(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 0]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-06',
+            'received_at' => now()->toDateString(),
+            'lines' => [['item_id' => $item->id, 'unit_id' => $item->unit_id, 'quantity' => 4, 'unit_cost' => 10]],
+        ])->assertOk();
+
+        $delivery = Delivery::with('items')->firstOrFail();
+        $delivery->update(['is_paid' => true, 'or_number' => 'OR-1', 'paid_at' => now()]);
+
+        $this->putJson(route('deliveries.update', $delivery), [
+            'po_number' => 'PO-2026-06',
+            'received_at' => now()->toDateString(),
+            'lines' => [[
+                'id' => $delivery->items->first()->id, 'item_id' => $item->id,
+                'unit_id' => $item->unit_id, 'quantity' => 40, 'unit_cost' => 10,
+            ]],
+        ])->assertStatus(422);
+
+        $this->assertEquals(4, (float) $item->fresh()->on_hand_qty);
+        $this->get(route('deliveries.edit', $delivery))->assertRedirect(route('deliveries.show', $delivery));
+    }
+
+    public function test_delivery_edit_form_renders_the_saved_lines(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 0]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-07',
+            'received_at' => now()->toDateString(),
+            'lines' => [[
+                'item_id' => $item->id, 'unit_id' => $item->unit_id,
+                'ordered_qty' => 12, 'quantity' => 3, 'unit_cost' => 10,
+            ]],
+        ])->assertOk();
+
+        $delivery = Delivery::firstOrFail();
+
+        $this->get(route('deliveries.edit', $delivery))
+            ->assertOk()
+            ->assertSee('PO-2026-07')
+            ->assertSee('Update Delivery');
+
+        // The partial balance is surfaced on the receipt.
+        $this->get(route('deliveries.show', $delivery))
+            ->assertOk()
+            ->assertSee('Partial');
+    }
+
     /* ======================= Releasing flow ======================= */
 
     public function test_releasing_decrements_stock_and_snapshots_cost(): void

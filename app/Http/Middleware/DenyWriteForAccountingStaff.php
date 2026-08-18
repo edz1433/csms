@@ -20,9 +20,11 @@ class DenyWriteForAccountingStaff
 
         if ($user && $user->isAccountingStaff()) {
             $isWriteVerb = in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true);
-            $isCreateForm = $request->route() && str_ends_with((string) $request->route()->getName(), '.create');
+            $name = (string) ($request->route()?->getName() ?? '');
+            // Write *forms* are GETs, so block them by route name too.
+            $isWriteForm = str_ends_with($name, '.create') || str_ends_with($name, '.edit');
 
-            if ($isWriteVerb || $isCreateForm) {
+            if ($isWriteVerb || $isWriteForm) {
                 abort(403, 'Accounting Staff has view-only access.');
             }
         }

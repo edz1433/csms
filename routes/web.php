@@ -81,6 +81,9 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
         Route::get('/deliveries/create', [DeliveryController::class, 'create'])->name('deliveries.create');
         Route::post('/deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
+        // Partial deliveries are topped up by editing the same delivery.
+        Route::get('/deliveries/{delivery}/edit', [DeliveryController::class, 'edit'])->name('deliveries.edit');
+        Route::put('/deliveries/{delivery}', [DeliveryController::class, 'update'])->name('deliveries.update');
         Route::get('/deliveries/{delivery}', [DeliveryController::class, 'show'])->name('deliveries.show');
     });
 

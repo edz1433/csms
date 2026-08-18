@@ -8,7 +8,17 @@
     <a href="{{ route('deliveries.index') }}" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-cpsu-green">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Deliveries
     </a>
-    <x-ui.button variant="ghost" icon="printer" onclick="window.print()">Print</x-ui.button>
+    <div class="flex items-center gap-2">
+        @if ($delivery->isEditable())
+            <x-action-guard>
+                {{-- The balance of a partial shipment is recorded here. --}}
+                <x-ui.button variant="ghost" icon="pencil" :href="route('deliveries.edit', $delivery)">
+                    {{ $delivery->isPartial() ? 'Record Delivery' : 'Edit' }}
+                </x-ui.button>
+            </x-action-guard>
+        @endif
+        <x-ui.button variant="ghost" icon="printer" onclick="window.print()">Print</x-ui.button>
+    </div>
 </div>
 
 <div class="bg-white rounded-xl border border-cpsu-border shadow-sm p-6 max-w-3xl mx-auto" id="receipt" data-aos="fade-up">
@@ -26,6 +36,20 @@
         <div><p class="text-xs text-gray-400 uppercase">Supplier</p><p class="font-semibold">{{ $delivery->supplier?->name ?? '-' }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Date Received</p><p class="font-semibold">{{ $delivery->received_at?->format('M d, Y') }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Received By</p><p class="font-semibold">{{ $delivery->receiver?->name }}</p></div>
+        <div>
+            <p class="text-xs text-gray-400 uppercase">Delivery Status</p>
+            @if ($delivery->isPartial())
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                    <i data-lucide="package-open" class="w-3.5 h-3.5"></i>
+                    Partial — {{ number_format($delivery->outstandingQty(), 2) }} still due
+                </span>
+            @else
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-cpsu-green/10 text-cpsu-green">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                    Complete
+                </span>
+            @endif
+        </div>
     </div>
 
     <div class="mt-5 rounded-lg border border-cpsu-border bg-cpsu-bg/40 p-4 flex flex-wrap items-center justify-between gap-3">
@@ -63,28 +87,38 @@
         </div>
     </div>
 
-    <table class="w-full text-sm mt-6">
-        <thead>
-            <tr class="text-left text-xs uppercase text-gray-500 border-y border-cpsu-border">
-                <th class="py-2 pr-3">#</th>
-                <th class="py-2 pr-3">Stock No.</th>
-                <th class="py-2 pr-3">Item</th>
-                <th class="py-2 pr-3 text-right">Quantity</th>
-                <th class="py-2 pr-3">Unit</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-cpsu-border">
-            @foreach ($delivery->items as $i => $line)
-                <tr>
-                    <td class="py-2 pr-3 text-gray-400">{{ $i + 1 }}</td>
-                    <td class="py-2 pr-3 font-mono text-xs">{{ $line->item->stock_number ?? '-' }}</td>
-                    <td class="py-2 pr-3">{{ $line->item->name }}</td>
-                    <td class="py-2 pr-3 text-right font-semibold">{{ number_format($line->quantity, 2) }}</td>
-                    <td class="py-2 pr-3">{{ $line->unit->abbreviation }}</td>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm mt-6">
+            <thead>
+                <tr class="text-left text-xs uppercase text-gray-500 border-y border-cpsu-border">
+                    <th class="py-2 pr-3">#</th>
+                    <th class="py-2 pr-3">Stock No.</th>
+                    <th class="py-2 pr-3">Item</th>
+                    <th class="py-2 pr-3 text-right">Ordered</th>
+                    <th class="py-2 pr-3 text-right">Received</th>
+                    <th class="py-2 pr-3 text-right">Balance</th>
+                    <th class="py-2 pr-3">Unit</th>
+                    <th class="py-2 pr-3">Date Received</th>
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="divide-y divide-cpsu-border">
+                @foreach ($delivery->items as $i => $line)
+                    <tr>
+                        <td class="py-2 pr-3 text-gray-400">{{ $i + 1 }}</td>
+                        <td class="py-2 pr-3 font-mono text-xs">{{ $line->item->stock_number ?? '-' }}</td>
+                        <td class="py-2 pr-3">{{ $line->item->name }}</td>
+                        <td class="py-2 pr-3 text-right">{{ $line->ordered_qty !== null ? number_format($line->ordered_qty, 2) : '—' }}</td>
+                        <td class="py-2 pr-3 text-right font-semibold">{{ number_format($line->quantity, 2) }}</td>
+                        <td class="py-2 pr-3 text-right {{ $line->balanceQty() > 0 ? 'text-amber-700 font-semibold' : 'text-gray-400' }}">
+                            {{ $line->ordered_qty !== null ? number_format($line->balanceQty(), 2) : '—' }}
+                        </td>
+                        <td class="py-2 pr-3">{{ $line->unit->abbreviation }}</td>
+                        <td class="py-2 pr-3 whitespace-nowrap">{{ $line->received_at?->format('M d, Y') ?? $delivery->received_at?->format('M d, Y') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
     @if ($delivery->remarks)
         <div class="mt-5 text-sm">
