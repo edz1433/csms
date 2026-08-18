@@ -519,4 +519,78 @@ class MaintenanceAndInventoryTest extends TestCase
             'counted_qty' => null,
         ]);
     }
+    public function test_new_item_lands_on_a_draft_sheet_that_has_not_been_cast_yet(): void
+    {
+        $admin = $this->admin();
+        $this->item(['name' => 'Existing Bond Paper']);
+
+        // A draft is built but never cast — it is still "the current inventory".
+        $this->actingAs($admin)->postJson(route('inventory.store'))->assertOk();
+        $draft = InventorySession::latest('id')->firstOrFail();
+        $this->assertTrue($draft->isDraft());
+        $this->assertDatabaseCount('inventory_counts', 1);
+
+        $this->actingAs($admin)->postJson(route('items.store'), [
+            'name' => 'Late Stapler', 'unit_id' => Unit::first()->id,
+            'unit_cost' => 150, 'on_hand_qty' => 4, 'is_active' => true,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('inventory_counts', [
+            'inventory_session_id' => $draft->id,
+            'item_id' => Item::where('name', 'Late Stapler')->value('id'),
+            'system_qty' => 4,
+        ]);
+    }
+
+    public function test_an_item_activated_mid_count_joins_the_running_sheet(): void
+    {
+        $admin = $this->admin();
+        $this->item(['name' => 'Existing Bond Paper']);
+        $session = $this->castInventory($admin);
+
+        // Created inactive: it must NOT be counted...
+        $this->actingAs($admin)->postJson(route('items.store'), [
+            'name' => 'Dormant Marker', 'unit_id' => Unit::first()->id,
+            'unit_cost' => 20, 'on_hand_qty' => 9, 'is_active' => false,
+        ])->assertOk();
+
+        $dormant = Item::where('name', 'Dormant Marker')->firstOrFail();
+        $this->assertDatabaseMissing('inventory_counts', ['item_id' => $dormant->id]);
+
+        // ...until someone activates it, which puts it on the sheet.
+        $this->actingAs($admin)->putJson(route('items.update', $dormant), [
+            'name' => 'Dormant Marker', 'unit_id' => $dormant->unit_id,
+            'unit_cost' => 20, 'on_hand_qty' => 9, 'is_active' => true,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('inventory_counts', [
+            'inventory_session_id' => $session->id,
+            'item_id' => $dormant->id,
+            'counted_qty' => null,
+        ]);
+    }
+
+    public function test_an_item_added_mid_count_can_be_scanned_and_counted_straight_away(): void
+    {
+        $admin = $this->admin();
+        $this->item(['name' => 'Existing Bond Paper']);
+        $this->castInventory($admin);
+
+        $this->actingAs($admin)->postJson(route('items.store'), [
+            'name' => 'Fresh Tape', 'unit_id' => Unit::first()->id,
+            'unit_cost' => 30, 'on_hand_qty' => 12, 'is_active' => true,
+        ])->assertOk();
+
+        $fresh = Item::where('name', 'Fresh Tape')->firstOrFail();
+
+        $this->actingAs($admin)->get(route('inventory.scan', $fresh))->assertOk();
+
+        $this->actingAs($admin)->postJson(route('inventory.count'), [
+            'item_id' => $fresh->id, 'unit_id' => $fresh->unit_id, 'counted_qty' => 11,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('inventory_counts', [
+            'item_id' => $fresh->id, 'system_qty' => 12, 'counted_qty' => 11,
+        ]);
+    }
 }

@@ -71,6 +71,14 @@
                     @endforeach
                 </div>
 
+                {{-- Items created (or reactivated) mid-count join the sheet on their
+                     own — see Item::syncToOpenInventorySessions(). --}}
+                <p class="mt-4 text-xs text-white/70 flex items-start gap-1.5">
+                    <i data-lucide="info" class="w-3.5 h-3.5 mt-0.5 shrink-0"></i>
+                    Any item added while this count is running is placed on the sheet automatically,
+                    uncounted, with its current stock as the expected quantity.
+                </p>
+
                 <div class="flex flex-wrap gap-2 mt-6">
                     <a href="{{ route('inventory.show', $active) }}"
                        class="inline-flex items-center gap-2 bg-cpsu-gold hover:brightness-95 text-cpsu-black font-bold rounded-lg px-5 py-2.5 text-sm transition active:scale-95">
