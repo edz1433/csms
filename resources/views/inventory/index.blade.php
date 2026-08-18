@@ -11,7 +11,7 @@
     :store-url="route('items.store')"
     :update-url="route('items.update', '__ID__')"
     :ajax-url="route('items.index')"
-    :can-write="auth()->user()->isAdministrator()"
+    :can-write="auth()->user()->canWrite()"
     blurb="On-hand quantity is the authoritative stock level, updated by Receiving and Releasing."
     :blank="['id' => null, 'stock_number' => '', 'name' => '', 'description' => '', 'unit_id' => '', 'account_title_id' => '', 'unit_cost' => '', 'on_hand_qty' => 0, 'is_active' => true]"
     :order="[[1, 'asc']]"

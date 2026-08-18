@@ -544,6 +544,125 @@ class ModuleCrudTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
     }
 
+    /* ===================== Role reach (supply vs admin) ===================== */
+
+    private function supply(): User
+    {
+        // No access array on purpose: Supply Staff pages come from the role.
+        return User::factory()->create([
+            'role' => User::ROLE_SUPPLY,
+            'is_active' => true,
+            'access' => null,
+        ]);
+    }
+
+    public function test_supply_staff_reach_every_page_except_user_management(): void
+    {
+        $supply = $this->supply();
+        $this->actingAs($supply);
+        $this->item();
+
+        foreach ([
+            route('dashboard'),
+            route('items.index'),
+            route('inventory.index'),
+            route('deliveries.index'),
+            route('iars.index'),
+            route('releases.index'),
+            route('suppliers.index'),
+            route('locations.index'),
+            route('units.index'),
+            route('fund-clusters.index'),
+            route('account-titles.index'),
+            route('reports.index'),
+        ] as $url) {
+            $this->get($url)->assertOk();
+        }
+
+        $this->get(route('users.index'))->assertForbidden();
+        $this->assertFalse($supply->canAccess('users'));
+        $this->assertTrue($supply->canAccess('reports'));
+
+        // Accounting Staff is still steered by its per-page access array.
+        $accounting = User::factory()->create([
+            'role' => User::ROLE_ACCOUNTING, 'is_active' => true, 'access' => ['dashboard', 'reports'],
+        ]);
+        $this->assertTrue($accounting->canAccess('reports'));
+        $this->assertFalse($accounting->canAccess('items'));
+
+        $this->actingAs($accounting)->get(route('items.index'))->assertForbidden();
+        $this->actingAs($accounting)->get(route('reports.index'))->assertOk();
+    }
+
+    public function test_supply_staff_cannot_touch_user_management_or_settings(): void
+    {
+        $this->actingAs($this->supply());
+        $other = User::factory()->create(['role' => User::ROLE_ACCOUNTING, 'is_active' => true]);
+
+        $this->postJson(route('users.store'), [
+            'name' => 'Sneaky', 'email' => 'sneaky@cpsu.edu.ph', 'password' => 'secret123',
+            'role' => User::ROLE_ADMIN, 'is_active' => true,
+        ])->assertForbidden();
+
+        $this->putJson(route('users.update', $other), [
+            'name' => 'Renamed', 'email' => $other->email, 'role' => User::ROLE_ACCOUNTING,
+        ])->assertForbidden();
+
+        $this->deleteJson(route('users.destroy', $other))->assertForbidden();
+        $this->patchJson(route('users.reset-password', $other))->assertForbidden();
+
+        // System Settings stays administrator-only too.
+        $this->get(route('settings.index'))->assertForbidden();
+        $this->postJson(route('settings.update'), ['maintenance_enabled' => 1])->assertForbidden();
+    }
+
+    public function test_supply_staff_write_at_administrator_level(): void
+    {
+        $this->actingAs($this->supply());
+        $item = $this->item();
+
+        // Item CRUD used to be administrator-only. Stock numbers are automated.
+        $this->postJson(route('items.store'), [
+            'name' => 'Stapler', 'unit_id' => $item->unit_id,
+            'account_title_id' => $item->account_title_id, 'unit_cost' => 120, 'is_active' => true,
+        ])->assertOk();
+
+        $created = Item::where('name', 'Stapler')->firstOrFail();
+
+        $this->putJson(route('items.update', $created), [
+            'name' => 'Stapler HD', 'unit_id' => $item->unit_id,
+            'account_title_id' => $item->account_title_id, 'unit_cost' => 150, 'is_active' => true,
+        ])->assertOk();
+        $this->assertDatabaseHas('items', ['id' => $created->id, 'name' => 'Stapler HD']);
+
+        $this->deleteJson(route('items.destroy', $created))->assertOk();
+        $this->assertDatabaseMissing('items', ['id' => $created->id]);
+    }
+
+    public function test_supply_sidebar_hides_user_management_only(): void
+    {
+        $this->actingAs($this->supply());
+
+        $html = $this->get(route('dashboard'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(route('items.index'), $html);
+        $this->assertStringContainsString(route('reports.index'), $html);
+        $this->assertStringNotContainsString(route('users.index'), $html);
+        $this->assertStringNotContainsString(route('settings.index'), $html);
+    }
+
+    public function test_user_management_clears_the_access_array_for_supply_accounts(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->postJson(route('users.store'), [
+            'name' => 'Supply Two', 'email' => 'supply2@cpsu.edu.ph', 'password' => 'secret123',
+            'role' => User::ROLE_SUPPLY, 'access' => ['dashboard'], 'is_active' => true,
+        ])->assertOk();
+
+        $this->assertNull(User::where('email', 'supply2@cpsu.edu.ph')->firstOrFail()->access);
+    }
+
     /* ==================== Reports (read + PDF) ==================== */
 
     public function test_report_pages_load(): void

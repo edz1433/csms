@@ -16,6 +16,9 @@ class User extends Authenticatable
     public const ROLE_SUPPLY = 'supply_staff';
     public const ROLE_ACCOUNTING = 'accounting_staff';
 
+    /** The one module Supply Staff never reach. */
+    public const PAGE_USERS = 'users';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -73,7 +76,11 @@ class User extends Authenticatable
 
     /**
      * Whether the user can see a given page key.
-     * Administrators always pass; others need the key in their access array.
+     *
+     * Administrators always pass. Supply Staff work at the same level as an
+     * administrator except for User Management, which stays administrator-only
+     * — their per-page access array is not consulted. Everyone else (accounting)
+     * needs the key in their access array.
      */
     public function canAccess(string $pageKey): bool
     {
@@ -81,7 +88,29 @@ class User extends Authenticatable
             return true;
         }
 
+        if ($this->isSupplyStaff()) {
+            return $pageKey !== self::PAGE_USERS;
+        }
+
         return in_array($pageKey, $this->access ?? [], true);
+    }
+
+    /**
+     * Whether page-level access is decided by role rather than by the
+     * per-account checkboxes. Used by User Management to explain itself.
+     */
+    public function hasRoleBasedAccess(): bool
+    {
+        return $this->isAdministrator() || $this->isSupplyStaff();
+    }
+
+    /**
+     * May create/edit/delete records. Accounting Staff is view-only everywhere
+     * (bar the payment tag), so everyone else writes.
+     */
+    public function canWrite(): bool
+    {
+        return $this->isAdministrator() || $this->isSupplyStaff();
     }
 
     /**

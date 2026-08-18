@@ -67,8 +67,9 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/items/{item}/pdf', [ItemController::class, 'pdf'])->name('items.pdf');
         Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
 
-        // Item CRUD is Administrator-only.
-        Route::middleware('role:administrator')->group(function () {
+        // Item CRUD: Administrator and Supply Staff (accounting stays view-only
+        // via deny.accounting.write).
+        Route::middleware('role:administrator,supply_staff')->group(function () {
             Route::post('/items', [ItemController::class, 'store'])->name('items.store');
             Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
             Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');

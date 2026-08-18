@@ -2,6 +2,8 @@
 
 @if ($user->isAdministrator())
     <span class="text-xs text-gray-400 italic">Full access</span>
+@elseif ($user->isSupplyStaff())
+    <span class="text-xs text-gray-400 italic">Full access except User Management</span>
 @elseif (empty($user->access))
     <span class="text-xs text-gray-300">—</span>
 @else

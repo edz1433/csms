@@ -34,7 +34,7 @@ class ItemController extends Controller
                 ->addColumn('action', function (Item $i) {
                     return view('inventory.partials.actions', [
                         'item' => $i,
-                        'canWrite' => auth()->user()->isAdministrator(),
+                        'canWrite' => auth()->user()->canWrite(),
                     ])->render();
                 })
                 ->filterColumn('unit', fn ($q, $kw) => $q->whereHas('unit', fn ($u) => $u->where('abbreviation', 'like', "%{$kw}%")->orWhere('name', 'like', "%{$kw}%")))

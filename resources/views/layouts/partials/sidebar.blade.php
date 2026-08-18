@@ -3,7 +3,9 @@
 @php
     $access = $access ?? (auth()->user()->access ?? []);
     $role   = $role ?? (auth()->user()->role ?? null);
-    $can = fn ($key) => $role === 'administrator' || in_array($key, $access ?? [], true);
+    // Role rules live on the model (administrators everywhere, Supply Staff
+    // everywhere but User Management, accounting per checkbox).
+    $can = fn ($key) => auth()->user()?->canAccess($key) ?? false;
 
     $nav = [
         ['key' => 'dashboard',      'route' => 'dashboard',            'label' => 'Dashboard',        'icon' => 'layout-dashboard'],

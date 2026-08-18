@@ -45,8 +45,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $supplyAccess = ['dashboard', 'items', 'receiving', 'iars', 'releasing', 'suppliers', 'locations', 'units', 'fund_clusters', 'account_titles', 'reports', 'inventory'];
-
         foreach ([
             ['name' => 'MAMAR, RAZEL C.', 'email' => 'rmamar@cpsu.edu.ph'],
             ['name' => 'LLAMAS, MA. SOCORRO T.', 'email' => 'mallamas@cpsu.edu.ph'],
@@ -59,7 +57,9 @@ class DatabaseSeeder extends Seeder
                     'name' => $staff['name'],
                     'password' => Hash::make('password'),
                     'role' => User::ROLE_SUPPLY,
-                    'access' => $supplyAccess,
+                    // Supply Staff pages come from the role (everything but
+                    // User Management), so no per-page array is stored.
+                    'access' => null,
                     'is_active' => true,
                     'email_verified_at' => now(),
                 ]

@@ -14,7 +14,7 @@
      })">
 
     <div class="flex items-center justify-between gap-3 mb-4">
-        <p class="text-sm text-gray-500 hidden sm:block">Administrators have full access; staff access is controlled per page.</p>
+        <p class="text-sm text-gray-500 hidden sm:block">Administrators and Supply Staff have full access (User Management stays administrator-only); Accounting access is controlled per page.</p>
         <x-ui.button variant="primary" icon="user-plus" onclick="window.openCreate('users')">New User</x-ui.button>
     </div>
 
@@ -64,8 +64,9 @@
                 Accounting Staff always has view-only access, plus the ability to mark released items as Paid/Unpaid — regardless of which pages are checked.
             </p>
 
-            {{-- Access checkboxes (hidden for administrators) --}}
-            <div x-show="form.role !== 'administrator'" x-cloak class="space-y-2">
+            {{-- Access checkboxes: only Accounting Staff is steered per page.
+                 Administrator and Supply Staff access is decided by role. --}}
+            <div x-show="form.role === 'accounting_staff'" x-cloak class="space-y-2">
                 <label class="block text-sm font-medium">Page Access</label>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-lg border border-cpsu-border p-3 bg-cpsu-bg/40">
                     @foreach ($labels as $key => $label)
@@ -79,6 +80,10 @@
             </div>
             <p x-show="form.role === 'administrator'" x-cloak class="text-xs text-gray-400 italic">
                 Administrators automatically have full access to every page.
+            </p>
+            <p x-show="form.role === 'supply_staff'" x-cloak class="text-xs text-gray-400 italic">
+                Supply Staff work at the same level as an administrator on every page except
+                User Management and System Settings, which stay administrator-only.
             </p>
 
             <label class="flex items-center gap-2 text-sm select-none">

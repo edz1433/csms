@@ -83,10 +83,13 @@ class UserController extends Controller
         ]);
     }
 
-    /** Administrators are full-access, so their access array is cleared. */
+    /**
+     * Administrators and Supply Staff get their pages from their role, so the
+     * stored access array is cleared for them.
+     */
     private function normalizeAccess(array $data): ?array
     {
-        if (($data['role'] ?? null) === User::ROLE_ADMIN) {
+        if (in_array($data['role'] ?? null, [User::ROLE_ADMIN, User::ROLE_SUPPLY], true)) {
             return null;
         }
 
