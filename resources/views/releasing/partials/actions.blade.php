@@ -5,8 +5,10 @@
         target="_blank" rel="noopener" title="View RIS (PDF)" />
 
     @if (auth()->user()?->isAdministrator())
-        {{-- Reversal: puts the issued quantities back on hand, then deletes the RIS. --}}
+        {{-- Reversal: puts the issued quantities back on hand, then deletes the RIS.
+             Js::from (not @js) — directives are not compiled inside a component
+             attribute value, they would be emitted verbatim into the onclick. --}}
         <x-ui.icon-btn icon="undo-2" variant="danger" title="Return stock & delete release"
-            onclick="CPSU.returnRelease('{{ route('releases.destroy', $release) }}', @js($release->ris_number))" />
+            onclick="CPSU.returnRelease({{ Illuminate\Support\Js::from(route('releases.destroy', $release)) }}, {{ Illuminate\Support\Js::from($release->ris_number) }})" />
     @endif
 </div>
