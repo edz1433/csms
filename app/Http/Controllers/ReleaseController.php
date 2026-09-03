@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResourceResponses;
 use App\Models\AccountTitle;
 use App\Models\FundCluster;
 use App\Models\Item;
@@ -17,6 +18,8 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ReleaseController extends Controller
 {
+    use ResourceResponses;
+
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -174,5 +177,33 @@ class ReleaseController extends Controller
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream('RIS-'.$release->ris_number.'.pdf');
+    }
+
+    /**
+     * Administrator-only reversal: put every issued quantity back on hand and
+     * drop the RIS (its lines cascade). Item rows are locked for the whole
+     * transaction so a concurrent release cannot read a stale on-hand count.
+     * The per-location RIS counter is deliberately left alone — sequences stay
+     * monotonic, so a reversed number is simply never reused.
+     */
+    public function destroy(Request $request, Release $release)
+    {
+        DB::transaction(function () use ($release) {
+            // Aggregate per item first: one item can appear on several lines.
+            $restore = [];
+            foreach ($release->items as $line) {
+                $restore[$line->item_id] = ($restore[$line->item_id] ?? 0) + (float) $line->quantity;
+            }
+
+            $locked = Item::whereIn('id', array_keys($restore))->lockForUpdate()->get()->keyBy('id');
+
+            foreach ($restore as $itemId => $qty) {
+                $locked[$itemId]?->increment('on_hand_qty', $qty);
+            }
+
+            $release->delete();
+        });
+
+        return $this->ok($request, 'Release reversed — stock returned to inventory.');
     }
 }

@@ -105,6 +105,11 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::post('/releases', [ReleaseController::class, 'store'])->name('releases.store');
         Route::get('/releases/{release}', [ReleaseController::class, 'show'])->name('releases.show');
         Route::get('/releases/{release}/pdf', [ReleaseController::class, 'pdf'])->name('releases.pdf');
+
+        // Reversal: returns the issued quantities to stock and deletes the RIS.
+        // Administrators only — everyone else keeps the read-only view.
+        Route::delete('/releases/{release}', [ReleaseController::class, 'destroy'])
+            ->middleware('role:administrator')->name('releases.destroy');
     });
 
     /* ---- User Management (Phase 8) — Administrators only ---- */

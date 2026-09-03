@@ -49,7 +49,7 @@
             <td width="50%"><span class="lbl">Fund Cluster:</span> {{ $release->fundCluster?->code }}</td>
         </tr>
         <tr>
-            <td><span class="lbl">Office:</span> {{ $release->location?->code }}</td>
+            <td><span class="lbl">Office:</span> {{ $release->location?->name ?? $release->location?->code }}</td>
             <td><span class="lbl">RIS No.:</span> {{ $release->ris_number }}</td>
         </tr>
         <tr>
