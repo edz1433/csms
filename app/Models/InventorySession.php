@@ -9,7 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A physical-count run. "Casting" an inventory opens it; closing it stops the
- * QR scan pages from accepting any more counts.
+ * QR scan pages from accepting any more counts; saving a closed one seals it
+ * for good — draft → active → closed → saved.
  */
 class InventorySession extends Model
 {
@@ -18,17 +19,25 @@ class InventorySession extends Model
 
     public const STATUS_ACTIVE = 'active';
 
-    /** Final: a closed inventory is the record of that count and never reopens. */
+    /** Stopped: no more counts are accepted, but it may still be cast again. */
     public const STATUS_CLOSED = 'closed';
+
+    /**
+     * Final. Saving seals the count: it can never be cast again and no item
+     * created afterwards is ever placed on its sheet. It stays readable.
+     */
+    public const STATUS_SAVED = 'saved';
 
     protected $fillable = [
         'reference', 'title', 'status', 'location_id',
-        'started_by', 'started_at', 'closed_by', 'closed_at', 'remarks',
+        'started_by', 'started_at', 'closed_by', 'closed_at',
+        'saved_by', 'saved_at', 'remarks',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'closed_at' => 'datetime',
+        'saved_at' => 'datetime',
     ];
 
     public function scopeActive(Builder $query): Builder
@@ -57,6 +66,18 @@ class InventorySession extends Model
         return $this->status === self::STATUS_CLOSED;
     }
 
+    /** Sealed for good — read-only from here on. */
+    public function isSaved(): bool
+    {
+        return $this->status === self::STATUS_SAVED;
+    }
+
+    /** Draft or active: the only states that take new items onto the sheet. */
+    public function isOpen(): bool
+    {
+        return $this->isDraft() || $this->isActive();
+    }
+
     /** The draft or active session, if any — only one may exist at a time. */
     public static function open(): ?self
     {
@@ -78,6 +99,12 @@ class InventorySession extends Model
         return $this->isDraft() || ($this->isClosed() && $this->isLatest());
     }
 
+    /** Only a closed inventory can be saved, and saving happens once. */
+    public function canBeSaved(): bool
+    {
+        return $this->isClosed();
+    }
+
     public function counts(): HasMany
     {
         return $this->hasMany(InventoryCount::class);
@@ -96,6 +123,11 @@ class InventorySession extends Model
     public function closer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    public function saver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'saved_by');
     }
 
     /**
@@ -126,6 +158,12 @@ class InventorySession extends Model
      */
     public function seedLines(): int
     {
+        // A closed inventory has stopped counting and a saved one is sealed —
+        // neither ever takes on items created after the fact.
+        if (! $this->isOpen()) {
+            return 0;
+        }
+
         $existing = $this->counts()->pluck('item_id')->all();
         $now = now();
         $seeded = 0;

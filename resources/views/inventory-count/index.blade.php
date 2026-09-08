@@ -11,6 +11,7 @@
         labelsUrl: @js(route('inventory.labels')),
         castUrlTemplate: @js(route('inventory.cast', ['session' => '__ID__'])),
         closeUrlTemplate: @js(route('inventory.close', ['session' => '__ID__'])),
+        saveUrlTemplate: @js(route('inventory.save', ['session' => '__ID__'])),
         itemCount: {{ $itemCount }},
         active: {{ $active ? 'true' : 'false' }},
         progress: @js($progress ?? ['counted' => 0, 'total' => 0, 'remaining' => 0, 'variance' => 0, 'percent' => 0]),
@@ -202,14 +203,20 @@
                                     </span>
                                 @elseif ($s->isDraft())
                                     <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Not started</span>
+                                @elseif ($s->isSaved())
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cpsu-green/10 text-cpsu-green"
+                                          title="Saved {{ $s->saved_at?->format('M d, Y · g:i A') }}{{ $s->saver ? ' by '.$s->saver->name : '' }}">
+                                        <i data-lucide="lock" class="w-3 h-3"></i> Saved
+                                    </span>
                                 @else
                                     <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Closed</span>
                                 @endif
                             </td>
 
                             {{-- Action column: cast a draft or re-cast the latest
-                                 closed one, uncast the running one. Older closed
-                                 inventories are sealed. --}}
+                                 closed one, uncast the running one, or save a
+                                 closed one to seal it. A saved inventory only
+                                 opens for reading. --}}
                             <td class="px-5 py-3 text-right whitespace-nowrap">
                                 <div class="inline-flex items-center gap-2">
                                     @if ($s->canBeCast())
@@ -228,6 +235,21 @@
                                                 <i data-lucide="circle-stop" class="w-3.5 h-3.5"></i> Uncast
                                             </button>
                                         </x-action-guard>
+                                    @endif
+
+                                    @if ($s->canBeSaved())
+                                        <x-action-guard>
+                                            <button type="button"
+                                                    @click="saveSession({{ $s->id }}, {{ Illuminate\Support\Js::from($s->reference) }})"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-cpsu-gold hover:bg-cpsu-gold-dark text-cpsu-black font-semibold px-3 py-1.5 text-xs transition active:scale-95"
+                                                    title="Make this count final — it can never be cast again">
+                                                <i data-lucide="save" class="w-3.5 h-3.5"></i> Save inventory
+                                            </button>
+                                        </x-action-guard>
+                                    @elseif ($s->isSaved())
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-gray-400" title="Final record — read only">
+                                            <i data-lucide="lock" class="w-3.5 h-3.5"></i> Final
+                                        </span>
                                     @endif
                                     <a href="{{ route('inventory.show', $s) }}"
                                        class="text-cpsu-green hover:underline font-semibold">Open</a>
@@ -313,13 +335,36 @@
       closeSession(id) {
         CPSU.confirm({
           title: 'Close this inventory?',
-          text: 'Scanners stop accepting counts right away, and a closed inventory cannot be cast again.',
+          text: 'Scanners stop accepting counts right away. A closed inventory can still be cast again — '
+              + 'save it when the count is final.',
           confirmText: 'Close inventory',
         }).then(function (r) {
           if (!r.isConfirmed) return;
           $.ajax({ url: cfg.closeUrlTemplate.replace('__ID__', id), method: 'PATCH' })
             .done(function () { CPSU.toast('Inventory closed.', 'success'); setTimeout(function () { location.reload(); }, 600); })
             .fail(function () { CPSU.toast('Could not close the inventory.', 'error'); });
+        });
+      },
+
+      // Saving seals the count: no more casting, no more edits, and no item
+      // added from now on ever lands on this sheet.
+      saveSession(id, reference) {
+        CPSU.confirm({
+          icon: 'warning',
+          title: 'Save this inventory?',
+          html: '<b>' + reference + '</b> becomes the final record of this count.'
+              + '<br><br>It can never be cast again, its counts can no longer change, and any item added '
+              + 'from now on will <b>not</b> appear on it.'
+              + '<br><span style="font-size:.85rem;color:#888">It stays open for viewing, printing and export.</span>',
+          confirmText: 'Yes, save it',
+        }).then(function (r) {
+          if (!r.isConfirmed) return;
+          $.ajax({ url: cfg.saveUrlTemplate.replace('__ID__', id), method: 'PATCH' })
+            .done(function (d) {
+              CPSU.toast((d && d.message) || 'Inventory saved.', 'success');
+              setTimeout(function () { location.reload(); }, 700);
+            })
+            .fail(function (x) { CPSU.toast((x.responseJSON && x.responseJSON.message) || 'Could not save the inventory.', 'error'); });
         });
       },
     };

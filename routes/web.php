@@ -64,6 +64,7 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
 
     Route::middleware('page:items')->group(function () {
         Route::get('/items', [ItemController::class, 'index'])->name('items.index');
+        Route::get('/items/import/template', [ItemController::class, 'importTemplate'])->name('items.import.template');
         Route::get('/items/{item}/pdf', [ItemController::class, 'pdf'])->name('items.pdf');
         Route::get('/items/{item}', [ItemController::class, 'show'])->name('items.show');
 
@@ -71,6 +72,7 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         // via deny.accounting.write).
         Route::middleware('role:administrator,supply_staff')->group(function () {
             Route::post('/items', [ItemController::class, 'store'])->name('items.store');
+            Route::post('/items/import', [ItemController::class, 'import'])->name('items.import');
             Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
             Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
         });
@@ -160,6 +162,9 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
         Route::get('/inventory/{session}/export', [InventoryController::class, 'export'])->name('inventory.export');
         Route::patch('/inventory/{session}/cast', [InventoryController::class, 'cast'])->name('inventory.cast');
         Route::patch('/inventory/{session}/close', [InventoryController::class, 'close'])->name('inventory.close');
+        // Saving seals a closed inventory: final, read-only, and never seeded
+        // with items created afterwards.
+        Route::patch('/inventory/{session}/save', [InventoryController::class, 'save'])->name('inventory.save');
     });
 
     /* ---- System Settings (administrator only) ---- */

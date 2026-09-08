@@ -22,9 +22,12 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- Isolated MySQL test database — never touches the dev database. -->
-        <env name="DB_CONNECTION" value="mysql"/>
-        <env name="DB_DATABASE" value="cpsu_csms_test"/>
+        <!-- Isolated MySQL test database — never touches the dev database.
+             force="true" is essential: without it these values LOSE to the ones
+             in .env, and RefreshDatabase would run migrate:fresh on the real
+             database and wipe it. -->
+        <env name="DB_CONNECTION" value="mysql" force="true"/>
+        <env name="DB_DATABASE" value="cpsu_csms_test" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

@@ -32,7 +32,7 @@ class InventoryController extends Controller
             'progress' => $active?->progress(),
             // Only a running count blocks starting another one.
             'hasActive' => (bool) $active,
-            'sessions' => InventorySession::with(['starter', 'closer', 'location'])
+            'sessions' => InventorySession::with(['starter', 'closer', 'saver', 'location'])
                 ->withCount('counts')->latest('started_at')->limit(25)->get(),
             'accountTitles' => AccountTitle::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'itemCount' => Item::where('is_active', true)->count(),
@@ -103,9 +103,11 @@ class InventoryController extends Controller
         if (! $session->canBeCast()) {
             return response()->json([
                 'ok' => false,
-                'message' => $session->isActive()
-                    ? 'This inventory is already running.'
-                    : 'Only the latest inventory can be cast again — this one is closed for good.',
+                'message' => match (true) {
+                    $session->isActive() => 'This inventory is already running.',
+                    $session->isSaved() => 'This inventory is saved — it is final and cannot be cast again.',
+                    default => 'Only the latest inventory can be cast again — this one is closed for good.',
+                },
             ], 422);
         }
 
@@ -127,9 +129,15 @@ class InventoryController extends Controller
                 'closed_at' => null,
             ]);
 
-            // Pick up items added since the sheet was built, and bring the
-            // expected quantities up to date as of right now.
-            $session->seedLines();
+            // A first cast picks up every item added since the sheet was built.
+            // Re-opening a closed count does NOT: its sheet is the list of items
+            // that existed while it was running, and items created after it was
+            // closed stay off it. Either way the expected quantities on lines
+            // nobody has counted are brought up to date as of right now.
+            if (! $reopened) {
+                $session->seedLines();
+            }
+
             $session->refreshExpectedQuantities();
         });
 
@@ -144,6 +152,13 @@ class InventoryController extends Controller
     /** Uncast (close) an inventory — scanners stop accepting counts at once. */
     public function close(Request $request, InventorySession $session)
     {
+        if ($session->isSaved()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'This inventory is saved — it is final and cannot be changed.',
+            ], 422);
+        }
+
         $session->update([
             'status' => InventorySession::STATUS_CLOSED,
             'closed_by' => $request->user()->id,
@@ -153,13 +168,44 @@ class InventoryController extends Controller
         return response()->json(['ok' => true, 'status' => $session->status]);
     }
 
+    /**
+     * Save (seal) a closed inventory. This is the final step: the sheet becomes
+     * the permanent record of that count — it can never be cast again, no count
+     * can be edited, and no item created from now on is ever added to it. It
+     * stays open for reading, printing and export.
+     */
+    public function save(Request $request, InventorySession $session)
+    {
+        if (! $session->canBeSaved()) {
+            return response()->json([
+                'ok' => false,
+                'message' => $session->isSaved()
+                    ? 'This inventory is already saved.'
+                    : 'Close the inventory first — only a closed inventory can be saved.',
+            ], 422);
+        }
+
+        $session->update([
+            'status' => InventorySession::STATUS_SAVED,
+            'saved_by' => $request->user()->id,
+            'saved_at' => now(),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'status' => $session->status,
+            'message' => 'Inventory '.$session->reference.' saved — this count is now final.',
+        ]);
+    }
+
     public function show(InventorySession $session)
     {
-        $session->load(['starter', 'closer', 'location']);
+        $session->load(['starter', 'closer', 'saver', 'location']);
 
         // Self-heal: any open inventory always has a sheet, including ones
-        // created before seeding existed.
-        if (! $session->isClosed() && $session->counts()->doesntExist()) {
+        // created before seeding existed. Closed and saved sheets are left
+        // exactly as they were.
+        if ($session->isOpen() && $session->counts()->doesntExist()) {
             $session->seedLines();
         }
 

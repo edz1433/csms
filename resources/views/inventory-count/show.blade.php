@@ -10,6 +10,8 @@
         countUrl: @js(route('inventory.count')),
         castUrl: @js(route('inventory.cast', $session)),
         closeUrl: @js(route('inventory.close', $session)),
+        saveUrl: @js(route('inventory.save', $session)),
+        reference: @js($session->reference),
         sessionId: {{ $session->id }},
         active: {{ $session->isActive() ? 'true' : 'false' }},
         progress: @js($progress),
@@ -35,6 +37,19 @@
                 </x-ui.button>
             </x-action-guard>
         @endif
+
+        @if ($session->canBeSaved())
+            <x-action-guard>
+                <x-ui.button variant="secondary" icon="save" x-on:click="saveSession()"
+                             title="Make this count final — it can never be cast again">
+                    Save inventory
+                </x-ui.button>
+            </x-action-guard>
+        @elseif ($session->isSaved())
+            <span class="inline-flex items-center gap-2 rounded-lg bg-cpsu-green/10 text-cpsu-green font-semibold px-4 py-2 text-sm">
+                <i data-lucide="lock" class="w-4 h-4"></i> Saved — final record
+            </span>
+        @endif
     </div>
 
     {{-- Draft notice --}}
@@ -46,6 +61,21 @@
                 <p class="text-xs text-amber-700/90 mt-0.5">
                     The sheet below lists every item with the stock currently on record. Cast the inventory to start
                     counting — quantities are locked until then, and the expected figures refresh at that moment.
+                </p>
+            </div>
+        </div>
+    @endif
+
+    {{-- Saved notice --}}
+    @if ($session->isSaved())
+        <div class="rounded-xl border border-cpsu-green/40 bg-cpsu-green/5 p-4 flex flex-wrap items-center gap-3" data-aos="fade-up">
+            <i data-lucide="lock" class="w-5 h-5 text-cpsu-green shrink-0"></i>
+            <div class="flex-1 min-w-[16rem]">
+                <p class="text-sm font-bold text-cpsu-green">This inventory is saved</p>
+                <p class="text-xs text-gray-600 mt-0.5">
+                    Saved {{ $session->saved_at?->format('M d, Y · g:i A') }}@if ($session->saver) by {{ $session->saver->name }}@endif.
+                    It is the final record of this count: it cannot be cast again, no quantity can change, and items
+                    added to the system from now on never appear on this sheet. Viewing, printing and export stay open.
                 </p>
             </div>
         </div>
@@ -217,7 +247,7 @@
         </div>
     @endif
 
-    @if (!$session->isActive())
+    @if (! $session->isActive() && ! $session->isDraft())
         <p class="text-xs text-gray-400 text-center">
             Closed {{ $session->closed_at?->format('M d, Y · g:i A') }}
             @if ($session->closer) by {{ $session->closer->name }} @endif
@@ -350,13 +380,35 @@
       closeSession() {
         CPSU.confirm({
           title: 'Close this inventory?',
-          text: 'Scanners stop accepting counts right away, and a closed inventory cannot be cast again.',
+          text: 'Scanners stop accepting counts right away. A closed inventory can still be cast again — '
+              + 'save it when the count is final.',
           confirmText: 'Close inventory',
         }).then(function (r) {
           if (!r.isConfirmed) return;
           $.ajax({ url: cfg.closeUrl, method: 'PATCH' })
             .done(function () { CPSU.toast('Inventory closed.', 'success'); setTimeout(function () { location.reload(); }, 600); })
             .fail(function () { CPSU.toast('Could not close the inventory.', 'error'); });
+        });
+      },
+
+      // Final step: the sheet becomes the permanent record of this count.
+      saveSession() {
+        CPSU.confirm({
+          icon: 'warning',
+          title: 'Save this inventory?',
+          html: '<b>' + cfg.reference + '</b> becomes the final record of this count.'
+              + '<br><br>It can never be cast again, its counts can no longer change, and any item added '
+              + 'from now on will <b>not</b> appear on it.'
+              + '<br><span style="font-size:.85rem;color:#888">It stays open for viewing, printing and export.</span>',
+          confirmText: 'Yes, save it',
+        }).then(function (r) {
+          if (!r.isConfirmed) return;
+          $.ajax({ url: cfg.saveUrl, method: 'PATCH' })
+            .done(function (d) {
+              CPSU.toast((d && d.message) || 'Inventory saved.', 'success');
+              setTimeout(function () { location.reload(); }, 700);
+            })
+            .fail(function (x) { CPSU.toast((x.responseJSON && x.responseJSON.message) || 'Could not save the inventory.', 'error'); });
         });
       },
     };

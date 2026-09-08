@@ -34,6 +34,25 @@ class Item extends Model
         });
     }
 
+    /**
+     * The next free number in the automated CS00001 series. Derived from the
+     * highest code already issued, so deleting an item never hands out a code
+     * that is already taken.
+     */
+    public static function nextStockNumberSequence(): int
+    {
+        $last = static::where('stock_number', 'like', 'CS%')
+            ->orderByRaw('CAST(SUBSTRING(stock_number, 3) AS UNSIGNED) DESC')
+            ->value('stock_number');
+
+        return $last ? ((int) substr($last, 2)) + 1 : 1;
+    }
+
+    public static function formatStockNumber(int $sequence): string
+    {
+        return sprintf('CS%05d', $sequence);
+    }
+
     public static function syncToOpenInventorySessions(): void
     {
         $openSessions = InventorySession::whereIn('status', [
