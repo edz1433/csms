@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Delivery '.$delivery->po_number)
+@section('title', 'Delivery '.$delivery->poLabel())
 @section('header', 'Delivery Receipt')
 
 @section('content')
@@ -11,9 +11,15 @@
     <div class="flex items-center gap-2">
         @if ($delivery->isEditable())
             <x-action-guard>
-                {{-- The balance of a partial shipment is recorded here. --}}
-                <x-ui.button variant="ghost" icon="pencil" :href="route('deliveries.edit', $delivery)">
-                    {{ $delivery->isPartial() ? 'Record Delivery' : 'Edit' }}
+                {{-- Step 2 of receiving, and later the balance of a partial shipment. --}}
+                <x-ui.button variant="{{ $delivery->items->isEmpty() ? 'primary' : 'ghost' }}"
+                             icon="{{ $delivery->items->isEmpty() ? 'package-plus' : 'pencil' }}"
+                             :href="route('deliveries.edit', $delivery)">
+                    @if ($delivery->items->isEmpty())
+                        Add Items
+                    @else
+                        {{ $delivery->isPartial() ? 'Record Delivery' : 'Edit' }}
+                    @endif
                 </x-ui.button>
             </x-action-guard>
         @endif
@@ -31,14 +37,24 @@
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 text-sm">
-        <div><p class="text-xs text-gray-400 uppercase">PO Number</p><p class="font-semibold font-mono">{{ $delivery->po_number }}</p></div>
+        <div>
+            <p class="text-xs text-gray-400 uppercase">PO Number</p>
+            <p class="font-semibold font-mono {{ $delivery->po_number ? '' : 'text-gray-400 italic font-sans font-normal' }}">
+                {{ $delivery->poLabel() }}
+            </p>
+        </div>
         <div><p class="text-xs text-gray-400 uppercase">Fund Cluster</p><p class="font-semibold">{{ $delivery->fundCluster?->code ?? '-' }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Supplier</p><p class="font-semibold">{{ $delivery->supplier?->name ?? '-' }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Date Received</p><p class="font-semibold">{{ $delivery->received_at?->format('M d, Y') }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Received By</p><p class="font-semibold">{{ $delivery->receiver?->name }}</p></div>
         <div>
             <p class="text-xs text-gray-400 uppercase">Delivery Status</p>
-            @if ($delivery->isPartial())
+            @if ($delivery->items->isEmpty())
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+                    <i data-lucide="package-open" class="w-3.5 h-3.5"></i>
+                    Draft — no items yet
+                </span>
+            @elseif ($delivery->isPartial())
                 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
                     <i data-lucide="package-open" class="w-3.5 h-3.5"></i>
                     Partial — {{ number_format($delivery->outstandingQty(), 2) }} still due
@@ -80,9 +96,14 @@
             @if ($delivery->iar)
                 <x-ui.button variant="ghost" icon="eye" :href="route('iars.show', $delivery->iar)">Open IAR</x-ui.button>
             @else
-                <x-action-guard>
-                    <x-ui.button variant="primary" icon="plus" :href="route('iars.create', ['delivery_id' => $delivery->id])">Create IAR</x-ui.button>
-                </x-action-guard>
+                @if ($delivery->items->isEmpty())
+                    {{-- An IAR over a delivery with no lines would report nothing. --}}
+                    <span class="text-xs text-gray-400 self-center">Add items before creating the IAR.</span>
+                @else
+                    <x-action-guard>
+                        <x-ui.button variant="primary" icon="plus" :href="route('iars.create', ['delivery_id' => $delivery->id])">Create IAR</x-ui.button>
+                    </x-action-guard>
+                @endif
             @endif
         </div>
     </div>
@@ -102,7 +123,7 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-cpsu-border">
-                @foreach ($delivery->items as $i => $line)
+                @forelse ($delivery->items as $i => $line)
                     <tr>
                         <td class="py-2 pr-3 text-gray-400">{{ $i + 1 }}</td>
                         <td class="py-2 pr-3 font-mono text-xs">{{ $line->item->stock_number ?? '-' }}</td>
@@ -115,7 +136,13 @@
                         <td class="py-2 pr-3">{{ $line->unit->abbreviation }}</td>
                         <td class="py-2 pr-3 whitespace-nowrap">{{ $line->received_at?->format('M d, Y') ?? $delivery->received_at?->format('M d, Y') }}</td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-sm text-gray-400">
+                            No items recorded against this delivery yet.
+                        </td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>

@@ -137,8 +137,8 @@
                         <label class="block text-xs font-medium text-gray-500 mb-1">Coverage</label>
                         <select x-model="labelScope"
                                 class="w-full rounded-lg border border-cpsu-border px-3 py-2 text-sm bg-white focus:border-cpsu-green outline-none">
-                            <option value="">All active items ({{ number_format($itemCount) }})</option>
-                            <option value="1">With stock on hand only</option>
+                            <option value="">All active items</option>
+                            <option value="1">With stock on hand only ({{ number_format($itemCount) }})</option>
                         </select>
                     </div>
                     <div class="sm:col-span-3">
@@ -316,8 +316,9 @@
             ? '<b>' + reference + '</b> will re-open for counting. Everything already counted is kept — '
               + 'only the lines still waiting get their expected quantities refreshed.'
               + '<br><span style="font-size:.85rem;color:#888">QR scanners go live again immediately.</span>'
-            : 'All <b>' + cfg.itemCount + '</b> active items will be added to the count sheet of <b>' + reference + '</b> '
-              + 'with the stock they hold right now.<br><span style="font-size:.85rem;color:#888">'
+            : 'The <b>' + cfg.itemCount + '</b> active items that hold stock will be added to the count sheet of <b>'
+              + reference + '</b> with the quantity they hold right now. Items with nothing on hand are left off.'
+              + '<br><span style="font-size:.85rem;color:#888">'
               + 'QR scanners go live immediately, and counting stays open until you uncast it.</span>',
           confirmText: reopening ? 'Yes, open it again' : 'Yes, start counting',
         }).then(function (r) {

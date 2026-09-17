@@ -490,6 +490,67 @@ class MaintenanceAndInventoryTest extends TestCase
         $this->assertNotEquals($paper->id, $pen->id);
     }
 
+    /* ========= Only stock on hand is counted ========= */
+
+    public function test_items_with_no_stock_stay_off_the_count_sheet(): void
+    {
+        $admin = $this->admin();
+        $stocked = $this->item(['name' => 'Bond Paper', 'on_hand_qty' => 100]);
+        $empty = $this->item(['stock_number' => 'CS00002', 'name' => 'Ballpen', 'on_hand_qty' => 0]);
+
+        $session = $this->castInventory($admin);
+
+        $this->assertDatabaseCount('inventory_counts', 1);
+        $this->assertDatabaseHas('inventory_counts', ['inventory_session_id' => $session->id, 'item_id' => $stocked->id]);
+        $this->assertDatabaseMissing('inventory_counts', ['item_id' => $empty->id]);
+    }
+
+    public function test_casting_drops_lines_for_items_that_ran_dry_since_the_draft(): void
+    {
+        $admin = $this->admin();
+        $keep = $this->item(['name' => 'Bond Paper', 'on_hand_qty' => 100]);
+        $drained = $this->item(['stock_number' => 'CS00002', 'name' => 'Ballpen', 'on_hand_qty' => 5]);
+
+        // Draft built while both still had stock.
+        $this->actingAs($admin)->postJson(route('inventory.store'))->assertOk();
+        $draft = InventorySession::latest('id')->firstOrFail();
+        $this->assertDatabaseCount('inventory_counts', 2);
+
+        // Everything is released before counting actually starts.
+        $drained->update(['on_hand_qty' => 0]);
+
+        $this->actingAs($admin)->patchJson(route('inventory.cast', $draft))
+            ->assertOk()->assertJson(['seeded' => 1]);
+
+        $this->assertDatabaseHas('inventory_counts', ['item_id' => $keep->id]);
+        $this->assertDatabaseMissing('inventory_counts', ['item_id' => $drained->id]);
+    }
+
+    public function test_a_line_someone_already_counted_is_never_pruned(): void
+    {
+        $admin = $this->admin();
+        $this->item(['name' => 'Bond Paper', 'on_hand_qty' => 100]);
+        $drained = $this->item(['stock_number' => 'CS00002', 'name' => 'Ballpen', 'on_hand_qty' => 5]);
+
+        $this->actingAs($admin)->postJson(route('inventory.store'))->assertOk();
+        $draft = InventorySession::latest('id')->firstOrFail();
+
+        // Counted to zero — evidence, not an empty line.
+        InventoryCount::where('inventory_session_id', $draft->id)
+            ->where('item_id', $drained->id)
+            ->update(['counted_qty' => 0, 'counted_by' => $admin->id, 'counted_at' => now()]);
+
+        $drained->update(['on_hand_qty' => 0]);
+
+        $this->actingAs($admin)->patchJson(route('inventory.cast', $draft))->assertOk();
+
+        $this->assertDatabaseHas('inventory_counts', [
+            'inventory_session_id' => $draft->id,
+            'item_id' => $drained->id,
+            'counted_qty' => 0,
+        ]);
+    }
+
     public function test_creating_new_item_automatically_seeds_line_into_ongoing_inventory_session(): void
     {
         $admin = $this->admin();

@@ -60,6 +60,12 @@ Route::middleware(['auth', 'deny.accounting.write'])->group(function () {
     // Stock lookup — used by the Releasing form; any authenticated user.
     Route::get('/items/{item}/stock', [ItemController::class, 'stock'])->name('items.stock');
 
+    // PO lookup — feeds the Releasing form's "select a PO" picker with that
+    // delivery's items. Read-only, and registered outside page:receiving so
+    // releasing-only staff can use it.
+    Route::get('/deliveries/{delivery}/releasable', [DeliveryController::class, 'releasable'])
+        ->name('deliveries.releasable');
+
     /* ---- Inventory / Items (Phase 4) ---- */
 
     Route::middleware('page:items')->group(function () {

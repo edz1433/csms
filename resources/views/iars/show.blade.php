@@ -2,7 +2,7 @@
 
 @section('title', 'IAR '.$iar->iar_number)
 @section('header', 'Inspection and Acceptance Report')
-@section('subheader', $iar->iar_number.' - '.$iar->delivery->po_number)
+@section('subheader', $iar->iar_number.' - '.$iar->delivery->poLabel())
 
 @section('content')
 <div class="mb-4 flex items-center justify-between print:hidden">
@@ -23,7 +23,7 @@
         <div><span class="text-gray-500">Fund Cluster:</span> <b>{{ $iar->delivery->fundCluster?->code ?? '___________' }}</b></div>
         <div><span class="text-gray-500">Supplier:</span> <b>{{ $iar->delivery->supplier?->name ?? '-' }}</b></div>
         <div><span class="text-gray-500">IAR No.:</span> <b class="font-mono">{{ $iar->iar_number }}</b></div>
-        <div><span class="text-gray-500">PO No./Date:</span> <b>{{ $iar->delivery->po_number }} / {{ $iar->delivery->received_at?->format('m-d-Y') }}</b></div>
+        <div><span class="text-gray-500">PO No./Date:</span> <b>{{ $iar->delivery->poLabel() }} / {{ $iar->delivery->received_at?->format('m-d-Y') }}</b></div>
         <div><span class="text-gray-500">IAR Date:</span> <b>{{ $iar->iar_date?->format('M d, Y') }}</b></div>
         <div><span class="text-gray-500">Requisitioning Office/Dept.:</span> <b>{{ $iar->requisitioning_office ?? '-' }}</b></div>
         <div><span class="text-gray-500">Invoice No.:</span> <b>{{ $iar->invoice_number ?? '-' }}</b></div>

@@ -21,6 +21,36 @@ class Delivery extends Model
     ];
 
     /**
+     * A delivery header can be saved before its items are known, so it may
+     * legitimately have no lines yet. It is a draft until the first line and
+     * the PO number are both in place.
+     */
+    public function isDraft(): bool
+    {
+        return ! filled($this->po_number) || ! $this->hasLines();
+    }
+
+    /** Line count without a query when the caller already eager-loaded/counted. */
+    public function hasLines(): bool
+    {
+        if ($this->relationLoaded('items')) {
+            return $this->items->isNotEmpty();
+        }
+
+        if ($this->items_count !== null) {
+            return (int) $this->items_count > 0;
+        }
+
+        return $this->items()->exists();
+    }
+
+    /** Human label for a delivery whose PO number has not been captured yet. */
+    public function poLabel(): string
+    {
+        return $this->po_number ?: 'PO pending';
+    }
+
+    /**
      * A delivery is still "partial" while any line has an ordered quantity that
      * has not been fully received yet. Lines without an ordered quantity are
      * treated as complete — nothing to wait for.
@@ -68,6 +98,11 @@ class Delivery extends Model
     public function items(): HasMany
     {
         return $this->hasMany(DeliveryItem::class);
+    }
+
+    public function releases(): HasMany
+    {
+        return $this->hasMany(Release::class);
     }
 
     public function iar(): HasOne

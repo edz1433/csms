@@ -29,7 +29,18 @@
     </div>
 
     {{-- Meta --}}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 text-sm">
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-5 text-sm">
+        <div>
+            <p class="text-xs text-gray-400 uppercase">PO Number</p>
+            @if ($release->delivery)
+                <a href="{{ route('deliveries.show', $release->delivery) }}"
+                   class="font-semibold font-mono text-cpsu-green hover:underline print:text-cpsu-black print:no-underline">
+                    {{ $release->delivery->poLabel() }}
+                </a>
+            @else
+                <p class="font-semibold text-gray-400">—</p>
+            @endif
+        </div>
         <div><p class="text-xs text-gray-400 uppercase">Fund Cluster</p><p class="font-semibold">{{ $release->fundCluster?->code }}</p></div>
         <div><p class="text-xs text-gray-400 uppercase">Destination</p><p class="font-semibold">{{ $release->location?->name }} <span class="text-xs text-gray-400">[{{ ucfirst($release->location?->type) }}]</span></p></div>
         <div><p class="text-xs text-gray-400 uppercase">Date Released</p><p class="font-semibold">{{ $release->released_at?->format('M d, Y') }}</p></div>

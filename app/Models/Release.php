@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Release extends Model
 {
     protected $fillable = [
-        'ris_number', 'fund_cluster_id', 'location_id',
+        'ris_number', 'fund_cluster_id', 'delivery_id', 'location_id',
         'released_by', 'released_at', 'remarks',
     ];
 
@@ -18,6 +18,11 @@ class Release extends Model
     public function fundCluster(): BelongsTo
     {
         return $this->belongsTo(FundCluster::class);
+    }
+
+    public function delivery(): BelongsTo
+    {
+        return $this->belongsTo(Delivery::class);
     }
 
     public function location(): BelongsTo

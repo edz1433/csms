@@ -96,7 +96,7 @@ class ReportsController extends Controller
         $deliveries = $item->deliveryItems()->with(['delivery.supplier'])->get()->map(fn ($di) => [
             'type' => 'in',
             'date' => $di->delivery->received_at,
-            'ref' => $di->delivery->po_number,
+            'ref' => $di->delivery->poLabel(),
             'party' => $di->delivery->supplier?->name,
             'qty' => (float) $di->quantity,
         ]);
@@ -537,7 +537,7 @@ class ReportsController extends Controller
     {
         $in = $item->deliveryItems()->with(['delivery', 'unit'])->get()->map(fn ($d) => [
             'date' => $d->delivery->received_at,
-            'ref' => $d->delivery->po_number,
+            'ref' => $d->delivery->poLabel(),
             'type' => 'in',
             'qty' => (float) $d->quantity,
         ]);
@@ -582,7 +582,7 @@ class ReportsController extends Controller
         $rows = $this->paymentRows($request, $from, $to)->map(fn ($iar) => [
             $iar->iar_number,
             $iar->iar_date?->format('Y-m-d'),
-            $iar->delivery?->po_number,
+            $iar->delivery?->poLabel(),
             $iar->delivery?->fundCluster?->code,
             $iar->delivery?->supplier?->name,
             $iar->delivery?->items?->count(),
@@ -632,7 +632,7 @@ class ReportsController extends Controller
         $rows = $this->iarRows($request, $from, $to)->map(fn ($iar) => [
             $iar->iar_number,
             $iar->iar_date?->format('Y-m-d'),
-            $iar->delivery?->po_number,
+            $iar->delivery?->poLabel(),
             $iar->delivery?->supplier?->name,
             $iar->delivery?->fundCluster?->code,
             $iar->invoice_number,

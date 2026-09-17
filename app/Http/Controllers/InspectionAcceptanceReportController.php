@@ -19,7 +19,7 @@ class InspectionAcceptanceReportController extends Controller
 
             return DataTables::eloquent($query)
                 ->editColumn('iar_date', fn (InspectionAcceptanceReport $iar) => $iar->iar_date?->format('M d, Y'))
-                ->addColumn('po_number', fn (InspectionAcceptanceReport $iar) => e($iar->delivery?->po_number ?? '—'))
+                ->addColumn('po_number', fn (InspectionAcceptanceReport $iar) => e($iar->delivery?->poLabel() ?? '—'))
                 ->addColumn('supplier', fn (InspectionAcceptanceReport $iar) => e($iar->delivery?->supplier?->name ?? '—'))
                 ->addColumn('created_by', fn (InspectionAcceptanceReport $iar) => e($iar->creator?->name ?? '—'))
                 ->addColumn('lines', fn (InspectionAcceptanceReport $iar) => $iar->delivery?->items?->count().' item'.($iar->delivery?->items?->count() == 1 ? '' : 's'))
@@ -48,8 +48,10 @@ class InspectionAcceptanceReportController extends Controller
 
         return view('iars.create', [
             'delivery' => $delivery,
+            // A delivery with no item lines yet would produce an empty IAR.
             'deliveries' => Delivery::with(['supplier', 'iar'])
                 ->doesntHave('iar')
+                ->has('items')
                 ->latest('received_at')
                 ->limit(100)
                 ->get(['id', 'po_number', 'supplier_id', 'received_at']),

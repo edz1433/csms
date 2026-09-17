@@ -35,7 +35,9 @@ class InventoryController extends Controller
             'sessions' => InventorySession::with(['starter', 'closer', 'saver', 'location'])
                 ->withCount('counts')->latest('started_at')->limit(25)->get(),
             'accountTitles' => AccountTitle::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'itemCount' => Item::where('is_active', true)->count(),
+            // What a cast would actually put on the sheet: active items that
+            // hold stock. Items with nothing on hand are not counted.
+            'itemCount' => Item::where('is_active', true)->where('on_hand_qty', '>', 0)->count(),
         ]);
     }
 
@@ -115,8 +117,8 @@ class InventoryController extends Controller
             return response()->json(['ok' => false, 'message' => 'Another inventory is already running.'], 422);
         }
 
-        // Casting builds the sheet: every active item, with the stock it is
-        // expected to have, waiting to be counted.
+        // Casting builds the sheet: every active item that holds stock, with the
+        // quantity it is expected to have, waiting to be counted.
         $reopened = $session->isClosed();
 
         DB::transaction(function () use ($session, $reopened) {
@@ -129,13 +131,16 @@ class InventoryController extends Controller
                 'closed_at' => null,
             ]);
 
-            // A first cast picks up every item added since the sheet was built.
+            // A first cast picks up every item that has gained stock since the
+            // sheet was built, and drops the ones that have since run dry —
+            // what is counted is what is actually on hand when counting starts.
             // Re-opening a closed count does NOT: its sheet is the list of items
             // that existed while it was running, and items created after it was
             // closed stay off it. Either way the expected quantities on lines
             // nobody has counted are brought up to date as of right now.
             if (! $reopened) {
                 $session->seedLines();
+                $session->pruneEmptyLines();
             }
 
             $session->refreshExpectedQuantities();

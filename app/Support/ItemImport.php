@@ -50,6 +50,12 @@ class ItemImport
     /** Last CS number handed out during this import. */
     private int $sequence = 0;
 
+    /** Codes minted by this run, so the new rows can be read back after insert. */
+    private array $createdCodes = [];
+
+    /** Ids of items this run changed (created or updated). */
+    private array $affected = [];
+
     public function __construct(private bool $updateExisting = false) {}
 
     /* ================= parsing ================= */
@@ -229,13 +235,16 @@ class ItemImport
                 // Only the two imported fields change: an existing item keeps
                 // its unit, account title and stock on hand.
                 Item::whereKey($this->existing[$key])->update($payload + ['updated_at' => $now]);
+                $this->affected[] = $this->existing[$key];
                 $summary['updated']++;
 
                 continue;
             }
 
+            $this->createdCodes[] = $code = Item::formatStockNumber(++$this->sequence);
+
             $create[] = $payload + [
-                'stock_number' => Item::formatStockNumber(++$this->sequence),
+                'stock_number' => $code,
                 'name' => $name,
                 // The list carries no unit, quantity or account title: an
                 // imported item is counted in pcs, starts with no stock, and is
@@ -259,6 +268,13 @@ class ItemImport
             $summary['created'] += count($chunk);
         }
 
+        // A mass insert hands back no ids, so the new rows are read back by the
+        // codes this run minted — callers that want to act on the items
+        // themselves (Receiving adds them straight to its delivery) need them.
+        foreach (array_chunk($this->createdCodes, 500) as $chunk) {
+            $this->affected = array_merge($this->affected, Item::whereIn('stock_number', $chunk)->pluck('id')->all());
+        }
+
         // A mass insert fires no model events, so the sheet of a running
         // inventory is refreshed once here instead of once per row.
         if ($summary['created'] > 0 || $summary['updated'] > 0) {
@@ -266,6 +282,17 @@ class ItemImport
         }
 
         return $summary;
+    }
+
+    /**
+     * Ids of every item this run created or updated, in no particular order.
+     * Empty until run() has been called.
+     *
+     * @return array<int, int>
+     */
+    public function affectedIds(): array
+    {
+        return array_values(array_unique($this->affected));
     }
 
     /* ================= helpers ================= */

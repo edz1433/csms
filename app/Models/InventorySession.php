@@ -153,8 +153,9 @@ class InventorySession extends Model
     }
 
     /**
-     * Snapshot every active item onto the sheet with the stock it is expected
-     * to have. Quantities stay null until someone counts them.
+     * Snapshot every active item that holds stock onto the sheet with the
+     * quantity it is expected to have. Counted quantities stay null until
+     * someone counts them.
      */
     public function seedLines(): int
     {
@@ -169,6 +170,10 @@ class InventorySession extends Model
         $seeded = 0;
 
         Item::where('is_active', true)
+            // A count sheet is a list of stock to go and find. An item with
+            // nothing on hand has nothing to count, so it stays off the sheet
+            // until a delivery gives it stock.
+            ->where('on_hand_qty', '>', 0)
             ->whereNotIn('id', $existing)
             ->select(['id', 'unit_id', 'on_hand_qty'])
             ->chunkById(500, function ($items) use ($now, &$seeded) {
@@ -189,6 +194,24 @@ class InventorySession extends Model
             });
 
         return $seeded;
+    }
+
+    /**
+     * Drop lines for items that no longer hold any stock — but only the ones
+     * nobody has counted yet: a recorded count is evidence and is never
+     * removed, even if it says zero. Run when counting starts, so a sheet
+     * drafted earlier still matches the stock-on-hand rule.
+     */
+    public function pruneEmptyLines(): int
+    {
+        if (! $this->isOpen()) {
+            return 0;
+        }
+
+        return $this->counts()
+            ->whereNull('counted_at')
+            ->whereHas('item', fn ($q) => $q->where('on_hand_qty', '<=', 0))
+            ->delete();
     }
 
     /**

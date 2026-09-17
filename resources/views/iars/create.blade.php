@@ -26,18 +26,18 @@
             <option value="">Select a delivery without IAR</option>
             @foreach ($deliveries as $d)
                 <option value="{{ $d->id }}" @selected($delivery?->id === $d->id)>
-                    {{ $d->po_number }} - {{ $d->supplier?->name ?? 'No supplier' }} ({{ $d->received_at?->format('M d, Y') }})
+                    {{ $d->poLabel() }} - {{ $d->supplier?->name ?? 'No supplier' }} ({{ $d->received_at?->format('M d, Y') }})
                 </option>
             @endforeach
             @if ($delivery && !$deliveries->contains('id', $delivery->id))
-                <option value="{{ $delivery->id }}" selected>{{ $delivery->po_number }} - {{ $delivery->supplier?->name ?? 'No supplier' }}</option>
+                <option value="{{ $delivery->id }}" selected>{{ $delivery->poLabel() }} - {{ $delivery->supplier?->name ?? 'No supplier' }}</option>
             @endif
         </select>
 
         @if ($delivery)
             <div class="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
                 <div><p class="text-xs text-gray-400 uppercase">Supplier</p><p class="font-semibold">{{ $delivery->supplier?->name ?? 'No supplier' }}</p></div>
-                <div><p class="text-xs text-gray-400 uppercase">PO Number</p><p class="font-semibold font-mono">{{ $delivery->po_number }}</p></div>
+                <div><p class="text-xs text-gray-400 uppercase">PO Number</p><p class="font-semibold font-mono">{{ $delivery->poLabel() }}</p></div>
                 <div><p class="text-xs text-gray-400 uppercase">Fund Cluster</p><p class="font-semibold">{{ $delivery->fundCluster?->code ?? 'None' }}</p></div>
                 <div><p class="text-xs text-gray-400 uppercase">Date Received</p><p class="font-semibold">{{ $delivery->received_at?->format('M d, Y') }}</p></div>
             </div>

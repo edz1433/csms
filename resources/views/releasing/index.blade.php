@@ -6,7 +6,7 @@
 
 @section('content')
 <div class="flex items-center justify-between gap-3 mb-4">
-    <p class="text-sm text-gray-500 hidden sm:block">Each release deducts on-hand stock and records RCA codes for accounting.</p>
+    <p class="text-sm text-gray-500 hidden sm:block">Each release deducts on-hand stock and records RCA codes for accounting. A PO issued to several offices gets one RIS per office.</p>
     <x-action-guard>
         <x-ui.button variant="primary" icon="plus" :href="route('releases.create')">New Release</x-ui.button>
     </x-action-guard>
@@ -41,12 +41,13 @@
   document.addEventListener('DOMContentLoaded', function () {
     var dt = CPSU.dataTable('#releases-table', @js(route('releases.index')), [
       { data: 'ris_number', title: 'RIS Number' },
+      { data: 'po_number', title: 'PO Number', orderable: false },
       { data: 'location', title: 'Campus / Office' },
       { data: 'fund', title: 'Fund', orderable: false, searchable: false },
       { data: 'lines', title: 'Items', orderable: false, searchable: false, className: 'text-center' },
       { data: 'released_at', title: 'Date Released' },
       { data: 'action', title: '', orderable: false, searchable: false, className: 'text-right' },
-    ], { order: [[4, 'desc']] });
+    ], { order: [[5, 'desc']] });
 
     window.reloadTable['releases'] = function () { dt.ajax.reload(null, false); };
   });

@@ -125,7 +125,8 @@ class LedgerController extends Controller
     {
         $ref = trim((string) $delivery->remarks);
         $ref = $ref !== '' ? $ref.', ' : '';
-        $ref .= 'PO No. '.$this->stripPrefix($delivery->po_number, 'PO');
+        // A delivery can be opened before its PO number is known.
+        $ref .= 'PO No. '.($delivery->po_number ? $this->stripPrefix($delivery->po_number, 'PO') : 'pending');
 
         $total = $delivery->items->sum(fn ($di) => (float) $di->quantity * (float) $di->unit_cost);
         $note = array_filter([$delivery->supplier?->name, $this->shortAmount($total)]);

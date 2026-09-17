@@ -254,6 +254,157 @@ class ModuleCrudTest extends TestCase
         $this->assertDatabaseHas('delivery_items', ['item_id' => $item->id, 'quantity' => 20, 'unit_cost' => 50]);
     }
 
+    /* ====== Creating / importing items from the delivery being entered ====== */
+
+    public function test_creating_an_item_hands_the_new_item_back_to_the_caller(): void
+    {
+        $this->actingAs($this->admin());
+        $unit = $this->unit();
+        $account = $this->account();
+
+        $res = $this->postJson(route('items.store'), [
+            'name' => 'Stapler, heavy duty',
+            'unit_id' => $unit->id,
+            'account_title_id' => $account->id,
+            'unit_cost' => 350,
+            'is_active' => true,
+            'on_hand_qty' => 0,
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        // Receiving puts this straight onto the delivery it is entering, so it
+        // needs the whole item back, not just a success flag.
+        $res->assertJsonPath('item.name', 'Stapler, heavy duty');
+        $res->assertJsonPath('item.unit_id', $unit->id);
+        $res->assertJsonPath('item.account_title_id', $account->id);
+        // Loose comparison: a whole float survives the JSON round trip as an int.
+        $this->assertEquals(350, $res->json('item.unit_cost'));
+        $this->assertEquals(0, $res->json('item.on_hand_qty'));
+        $this->assertNotEmpty($res->json('item.stock_number'));
+        $this->assertNotNull($res->json('item.id'));
+    }
+
+    public function test_item_import_returns_the_imported_items_when_asked(): void
+    {
+        $this->actingAs($this->admin());
+        $this->unit();
+
+        $csv = "Item Name,Unit Cost,Description\nStaple Wire #35,45.50,Box of 5000\nGlue Stick 8g,18,\n";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('items.csv', $csv);
+
+        $res = $this->post(route('items.import'), ['file' => $file, 'with_items' => 1], ['Accept' => 'application/json'])
+            ->assertOk()->assertJson(['ok' => true]);
+
+        $this->assertSame(2, $res->json('summary.created'));
+        $this->assertSame(2, $res->json('items_total'));
+        $this->assertFalse($res->json('items_truncated'));
+
+        $names = collect($res->json('items'))->pluck('name')->all();
+        sort($names);
+        $this->assertSame(['Glue Stick 8g', 'Staple Wire #35'], $names);
+
+        // Imported items start with no stock — the delivery is what puts it on.
+        foreach ($res->json('items') as $item) {
+            $this->assertEquals(0, $item['on_hand_qty']);
+            $this->assertNotNull($item['unit_id']);
+            $this->assertNotEmpty($item['stock_number']);
+        }
+    }
+
+    public function test_item_import_leaves_the_items_out_unless_they_are_asked_for(): void
+    {
+        $this->actingAs($this->admin());
+        $this->unit();
+
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('items.csv', "Item Name,Unit Cost\nMasking Tape,30\n");
+
+        $res = $this->post(route('items.import'), ['file' => $file], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame(1, $res->json('summary.created'));
+        $this->assertNull($res->json('items'));
+    }
+
+    public function test_item_entry_screen_offers_the_new_item_and_import_tools(): void
+    {
+        $this->actingAs($this->admin());
+        $delivery = Delivery::create([
+            'po_number' => 'PO-TOOLS', 'received_by' => $this->admin()->id, 'received_at' => now(),
+        ]);
+
+        $this->get(route('deliveries.edit', $delivery))
+            ->assertOk()
+            ->assertSee('New item')
+            ->assertSee('receiving-new-item')
+            ->assertSee('receiving-import-items')
+            // The tools announce what they made; the form picks it up from there.
+            ->assertSee('items-created')
+            // The behaviour is pushed onto the scripts stack from inside an
+            // action-guard slot — assert it actually reached the page.
+            ->assertSee('function receivingItemTools(', false)
+            ->assertSee('absorbItems(', false);
+
+        // Step 1 has no item list yet, so it carries neither tool.
+        $this->get(route('deliveries.create'))->assertOk()->assertDontSee('receiving-import-items');
+    }
+
+    /* ============ Two-step receiving (header first, items after) ============ */
+
+    public function test_delivery_is_opened_without_a_po_number_or_items_then_items_are_added(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 0, 'unit_cost' => 10]);
+
+        // Step 1: the goods arrived, the PO paperwork has not.
+        $res = $this->postJson(route('deliveries.store'), [
+            'received_at' => now()->toDateString(),
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        $delivery = Delivery::with('items')->firstOrFail();
+        $this->assertNull($delivery->po_number);
+        $this->assertTrue($delivery->isDraft());
+        $this->assertCount(0, $delivery->items);
+
+        // The caller is sent straight to the item-entry screen.
+        $this->assertSame(route('deliveries.edit', $delivery), $res->json('redirect'));
+        $this->get(route('deliveries.edit', $delivery))->assertOk()->assertSee('Add Items Received');
+
+        // The receipt reads as a draft, and offers no IAR while it is empty.
+        $this->get(route('deliveries.show', $delivery))
+            ->assertOk()
+            ->assertSee('PO pending')
+            ->assertSee('Draft')
+            ->assertSee('Add items before creating the IAR.');
+
+        // Step 2: the items, and the PO number now that it has turned up.
+        $this->putJson(route('deliveries.update', $delivery), [
+            'po_number' => 'PO-2026-10',
+            'received_at' => now()->toDateString(),
+            'lines' => [
+                ['item_id' => $item->id, 'unit_id' => $item->unit_id, 'quantity' => 12, 'unit_cost' => 25],
+            ],
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        $delivery = $delivery->fresh()->load('items');
+        $this->assertSame('PO-2026-10', $delivery->po_number);
+        $this->assertFalse($delivery->isDraft());
+        $this->assertEquals(12, (float) $item->fresh()->on_hand_qty);
+    }
+
+    public function test_delivery_opened_with_lines_still_saves_them_in_one_go(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 0]);
+
+        $res = $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-2026-11',
+            'received_at' => now()->toDateString(),
+            'lines' => [['item_id' => $item->id, 'unit_id' => $item->unit_id, 'quantity' => 3, 'unit_cost' => 10]],
+        ])->assertOk();
+
+        $delivery = Delivery::firstOrFail();
+        $this->assertSame(route('deliveries.show', $delivery), $res->json('redirect'));
+        $this->assertEquals(3, (float) $item->fresh()->on_hand_qty);
+    }
+
     /* ================ Partial deliveries (top-up / edit) ================ */
 
     public function test_partial_delivery_can_be_topped_up_later_and_only_the_difference_hits_stock(): void
@@ -487,6 +638,98 @@ class ModuleCrudTest extends TestCase
 
         $this->assertEquals(5, (float) $item->fresh()->on_hand_qty); // unchanged (rolled back)
         $this->assertDatabaseCount('releases', 0);
+    }
+
+    /* =========== Releasing against a PO (split across offices) =========== */
+
+    public function test_po_lookup_lists_the_delivery_items_for_the_releasing_form(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin);
+        $item = $this->item(['on_hand_qty' => 0, 'unit_cost' => 10]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-REL-1',
+            'received_at' => now()->toDateString(),
+            'lines' => [['item_id' => $item->id, 'unit_id' => $item->unit_id, 'quantity' => 30, 'unit_cost' => 10]],
+        ])->assertOk();
+
+        $delivery = Delivery::firstOrFail();
+
+        $res = $this->getJson(route('deliveries.releasable', $delivery))->assertOk();
+
+        $res->assertJsonPath('delivery.po_number', 'PO-REL-1');
+        $res->assertJsonPath('lines.0.item_id', $item->id);
+        $res->assertJsonPath('lines.0.delivered', 30);
+        $res->assertJsonPath('lines.0.on_hand', 30);
+        $res->assertJsonPath('lines.0.released_on_po', 0);
+        $res->assertJsonPath('lines.0.suggested', 30);
+    }
+
+    public function test_one_po_can_issue_the_same_item_to_two_offices(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin);
+        $item = $this->item(['on_hand_qty' => 0, 'unit_cost' => 10]);
+        $fund = $this->fund();
+        $officeA = $this->campus();
+        $officeB = Location::create(['type' => 'office', 'code' => '002', 'name' => 'REGISTRAR', 'is_active' => true]);
+
+        $this->postJson(route('deliveries.store'), [
+            'po_number' => 'PO-REL-2',
+            'received_at' => now()->toDateString(),
+            'lines' => [['item_id' => $item->id, 'unit_id' => $item->unit_id, 'quantity' => 30, 'unit_cost' => 10]],
+        ])->assertOk();
+
+        $delivery = Delivery::firstOrFail();
+
+        $issue = fn (Location $to, float $qty) => $this->postJson(route('releases.store'), [
+            'fund_cluster_id' => $fund->id,
+            'delivery_id' => $delivery->id,
+            'location_id' => $to->id,
+            'released_at' => now()->toDateString(),
+            'lines' => [[
+                'item_id' => $item->id, 'account_title_id' => $item->account_title_id,
+                'unit_id' => $item->unit_id, 'quantity' => $qty,
+            ]],
+        ]);
+
+        // Same item, same PO, two different offices — two RIS, both allowed.
+        $issue($officeA, 10)->assertOk()->assertJson(['ok' => true]);
+        $issue($officeB, 8)->assertOk()->assertJson(['ok' => true]);
+
+        $this->assertEquals(12, (float) $item->fresh()->on_hand_qty);   // 30 - 10 - 8
+        $this->assertEquals(2, Release::where('delivery_id', $delivery->id)->count());
+        $this->assertEquals(2, Release::where('delivery_id', $delivery->id)->distinct('location_id')->count('location_id'));
+
+        // The lookup reports where this PO's stock has gone, per office, and
+        // still offers the item — there is stock left for a third office.
+        $res = $this->getJson(route('deliveries.releasable', $delivery))->assertOk();
+        $res->assertJsonPath('lines.0.released_on_po', 18);
+        $res->assertJsonPath('lines.0.remaining_on_po', 12);
+        $res->assertJsonPath('lines.0.suggested', 12);
+
+        $offices = collect($res->json('lines.0.offices'))->pluck('quantity', 'location')->all();
+        $this->assertEquals(['MAIN CAMPUS' => 10, 'REGISTRAR' => 8], $offices);
+    }
+
+    public function test_release_without_a_po_still_works(): void
+    {
+        $this->actingAs($this->admin());
+        $item = $this->item(['on_hand_qty' => 5]);
+
+        $this->postJson(route('releases.store'), [
+            'fund_cluster_id' => $this->fund()->id,
+            'location_id' => $this->campus()->id,
+            'released_at' => now()->toDateString(),
+            'lines' => [[
+                'item_id' => $item->id, 'account_title_id' => $item->account_title_id,
+                'unit_id' => $item->unit_id, 'quantity' => 2,
+            ]],
+        ])->assertOk();
+
+        $this->assertNull(Release::firstOrFail()->delivery_id);
+        $this->assertEquals(3, (float) $item->fresh()->on_hand_qty);
     }
 
     public function test_iar_creation_and_payment_toggle(): void
@@ -775,7 +1018,13 @@ class ModuleCrudTest extends TestCase
         $item = $this->item();
         Unit::create(['name' => 'Bottle', 'abbreviation' => 'btl']);
 
-        foreach ([route('deliveries.create'), route('releases.create')] as $url) {
+        // Receiving enters its items on the edit screen (step 2), which is
+        // where the per-line unit select lives.
+        $delivery = Delivery::create([
+            'po_number' => 'PO-UNITS', 'received_by' => $this->admin()->id, 'received_at' => now(),
+        ]);
+
+        foreach ([route('deliveries.edit', $delivery), route('releases.create')] as $url) {
             $this->get($url)
                 ->assertOk()
                 ->assertSee('Bottle (btl)')

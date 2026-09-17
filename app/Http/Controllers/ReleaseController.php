@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResourceResponses;
 use App\Models\AccountTitle;
+use App\Models\Delivery;
 use App\Models\FundCluster;
 use App\Models\Item;
 use App\Models\Location;
@@ -24,7 +25,7 @@ class ReleaseController extends Controller
     {
         if ($request->ajax()) {
             $query = Release::query()
-                ->with(['location', 'fundCluster', 'releaser'])
+                ->with(['location', 'fundCluster', 'releaser', 'delivery'])
                 ->withCount('items');
 
             return DataTables::eloquent($query)
@@ -32,10 +33,15 @@ class ReleaseController extends Controller
                 ->editColumn('ris_number', fn (Release $r) => '<span class="font-mono font-semibold">'.e($r->ris_number).'</span>')
                 ->addColumn('location', fn (Release $r) => e($r->location?->name).' <span class="text-xs text-gray-400">['.ucfirst($r->location?->type).']</span>')
                 ->addColumn('fund', fn (Release $r) => e($r->fundCluster?->code))
+                // Several RIS rows can share a PO — one per receiving office.
+                ->addColumn('po_number', fn (Release $r) => $r->delivery
+                    ? '<span class="font-mono text-xs">'.e($r->delivery->poLabel()).'</span>'
+                    : '<span class="text-gray-300">—</span>')
                 ->addColumn('lines', fn (Release $r) => $r->items_count.' item'.($r->items_count == 1 ? '' : 's'))
                 ->addColumn('action', fn (Release $r) => view('releasing.partials.actions', ['release' => $r])->render())
                 ->filterColumn('location', fn ($q, $kw) => $q->whereHas('location', fn ($l) => $l->where('name', 'like', "%{$kw}%")))
-                ->rawColumns(['ris_number', 'location', 'action'])
+                ->filterColumn('po_number', fn ($q, $kw) => $q->whereHas('delivery', fn ($d) => $d->where('po_number', 'like', "%{$kw}%")))
+                ->rawColumns(['ris_number', 'location', 'po_number', 'action'])
                 ->toJson();
         }
 
@@ -46,6 +52,13 @@ class ReleaseController extends Controller
     {
         return view('releasing.create', [
             'fundClusters' => FundCluster::where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            // Only POs that already carry item lines are worth picking — a
+            // delivery header with nothing on it has nothing to release.
+            'deliveries' => Delivery::query()
+                ->has('items')
+                ->with('supplier:id,name')
+                ->orderByDesc('received_at')
+                ->get(['id', 'po_number', 'supplier_id', 'fund_cluster_id', 'received_at']),
             'locations' => Location::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'type']),
             'units' => Unit::orderBy('name')->get(['id', 'name', 'abbreviation']),
             'accountTitles' => AccountTitle::where('is_active', true)->orderBy('name')->get(['id', 'name', 'rca_code']),
@@ -58,6 +71,10 @@ class ReleaseController extends Controller
     {
         $data = $request->validate([
             'fund_cluster_id' => ['required', 'exists:fund_clusters,id'],
+            // The PO this issue draws from. Optional (stock can be released
+            // without naming one) and deliberately not unique per release:
+            // one PO is split across offices, one RIS each.
+            'delivery_id' => ['nullable', 'exists:deliveries,id'],
             'location_id' => ['required', 'exists:locations,id'],
             'released_at' => ['required', 'date', 'before_or_equal:today'],
             'remarks' => ['nullable', 'string', 'max:1000'],
@@ -119,6 +136,7 @@ class ReleaseController extends Controller
             $release = Release::create([
                 'ris_number' => $risNumber,
                 'fund_cluster_id' => $data['fund_cluster_id'],
+                'delivery_id' => $data['delivery_id'] ?? null,
                 'location_id' => $location->id,
                 'released_by' => $request->user()->id,
                 'released_at' => $releasedAt,
@@ -156,7 +174,7 @@ class ReleaseController extends Controller
 
     public function show(Release $release)
     {
-        $release->load(['location', 'fundCluster', 'releaser', 'items.item', 'items.unit', 'items.accountTitle']);
+        $release->load(['location', 'fundCluster', 'releaser', 'delivery', 'items.item', 'items.unit', 'items.accountTitle']);
 
         return view('releasing.show', compact('release'));
     }

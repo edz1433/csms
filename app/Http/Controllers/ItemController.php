@@ -14,6 +14,12 @@ class ItemController extends Controller
 {
     use ResourceResponses;
 
+    /**
+     * Most imported items an import call will hand back to its caller. A form
+     * that turns each one into a row stops being usable long before this.
+     */
+    private const RETURNED_ITEMS_LIMIT = 300;
+
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -181,12 +187,14 @@ class ItemController extends Controller
         $data = $this->validateData($request);
         $data['on_hand_qty'] = $data['on_hand_qty'] ?? 0;
 
+        $item = null;
+
         // Item code is automated (CS00001, CS00002, …) — never taken from input.
         // Retry a couple of times in case two items are created back-to-back.
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
                 $data['stock_number'] = $this->nextItemCode();
-                Item::create($data);
+                $item = Item::create($data);
                 break;
             } catch (\Illuminate\Database\QueryException $e) {
                 if ($attempt === 2) {
@@ -195,7 +203,35 @@ class ItemController extends Controller
             }
         }
 
+        // The new item goes back with the response: Receiving creates an item
+        // from its own screen and puts it straight on the delivery, without a
+        // round trip through the item list.
+        if ($request->wantsJson() && $item) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Item created.',
+                'item' => $this->itemPayload($item),
+            ]);
+        }
+
         return $this->ok($request, 'Item created.');
+    }
+
+    /**
+     * The shape every picker on the receiving / releasing forms expects of an
+     * item. Kept in one place so a new field reaches all of them at once.
+     */
+    private function itemPayload(Item $item): array
+    {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'stock_number' => $item->stock_number,
+            'unit_id' => $item->unit_id,
+            'account_title_id' => $item->account_title_id,
+            'unit_cost' => (float) $item->unit_cost,
+            'on_hand_qty' => (float) $item->on_hand_qty,
+        ];
     }
 
     public function update(Request $request, Item $item)
@@ -222,6 +258,9 @@ class ItemController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'max:10240'],
             'update_existing' => ['nullable', 'boolean'],
+            // Receiving asks for the imported items themselves, so it can put
+            // them on the delivery it is in the middle of entering.
+            'with_items' => ['nullable', 'boolean'],
         ], [], ['file' => 'CSV file']);
 
         $file = $request->file('file');
@@ -250,13 +289,30 @@ class ItemController extends Controller
                 .number_format(ItemImport::MAX_ROWS).' at a time and split the rest into a second file.');
         }
 
-        $summary = (new ItemImport($request->boolean('update_existing')))->run($rows);
+        $importer = new ItemImport($request->boolean('update_existing'));
+        $summary = $importer->run($rows);
 
-        return response()->json([
+        $response = [
             'ok' => true,
             'summary' => $summary,
             'message' => $this->importMessage($summary),
-        ]);
+        ];
+
+        if ($request->boolean('with_items')) {
+            $ids = $importer->affectedIds();
+
+            // A caller that puts these on screen as form rows cannot use
+            // thousands of them; hand back a workable slice and say so.
+            $response['items_total'] = count($ids);
+            $response['items_truncated'] = count($ids) > self::RETURNED_ITEMS_LIMIT;
+            $response['items'] = Item::whereIn('id', array_slice($ids, 0, self::RETURNED_ITEMS_LIMIT))
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Item $i) => $this->itemPayload($i))
+                ->all();
+        }
+
+        return response()->json($response);
     }
 
     /** Plain-language result line for the import modal and its toast. */
