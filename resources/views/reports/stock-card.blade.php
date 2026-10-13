@@ -55,6 +55,7 @@
     @include('reports.partials.pdf-frame', [
         'title' => 'Stock Card',
         'emptyText' => 'Choose one or more items (or All items) and a date range, then click Generate PDF. Each item prints on its own page.',
+        'loading' => true,
     ])
 </div>
 
@@ -63,7 +64,7 @@
   function stockCardReport(cfg) {
     return {
       fund_cluster_id: '', account_title_id: '', withQr: false,
-      from: cfg.from, to: cfg.to, url: '',
+      from: cfg.from, to: cfg.to, url: '', loading: false,
       init() {
         var self = this;
         new TomSelect('#sc-fund', { create: false, allowEmptyOption: true });
@@ -72,9 +73,16 @@
         // "All items" stands alone, so picking it clears the others and vice versa.
         this.itemPicker = new TomSelect('#sc-item', {
           create: false, plugins: ['remove_button'], hidePlaceholder: true,
+          // Only removeItem here: setValue/addItem would fire item_add again
+          // and recurse until the stack overflows.
           onItemAdd: function (value) {
-            if (value === 'all') { this.setValue(['all'], true); this.close(); }
-            else if (this.items.indexOf('all') !== -1) { this.removeItem('all', true); }
+            var ts = this;
+            if (value === 'all') {
+              ts.items.slice().forEach(function (v) { if (v !== 'all') { ts.removeItem(v, true); } });
+              ts.close();
+            } else if (ts.items.indexOf('all') !== -1) {
+              ts.removeItem('all', true);
+            }
           },
         });
         this.applyScope = CPSU.scopePicker(this.itemPicker, cfg.records, null,
@@ -128,6 +136,7 @@
           ids.forEach(function (id) { p.append('item_ids[]', id); });
         }
         if (this.withQr) { p.set('qr', 1); }
+        this.loading = true;
         this.url = cfg.base + '?' + p.toString();
       },
     };
