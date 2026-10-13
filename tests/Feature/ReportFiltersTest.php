@@ -256,6 +256,43 @@ class ReportFiltersTest extends TestCase
         $this->assertStringContainsString('SCAN TO COUNT', $html);
     }
 
+    public function test_stock_card_all_items_prints_one_card_per_scoped_item(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->get(route('reports.stock-card'))->assertOk()->assertSee('All items');
+
+        $all = $this->get(route('reports.stock-card.pdf', ['item_id' => 'all']))
+            ->assertOk()->assertHeader('content-type', 'application/pdf');
+        $scoped = $this->get(route('reports.stock-card.pdf', ['item_id' => 'all', 'fund_cluster_id' => $this->fundA->id]))
+            ->assertOk();
+        $this->assertGreaterThan(strlen($scoped->getContent()), strlen($all->getContent()));
+
+        // No item books against drugs under fund A.
+        $this->get(route('reports.stock-card.pdf', [
+            'item_id' => 'all', 'fund_cluster_id' => $this->fundA->id, 'account_title_id' => $this->drugs->id,
+        ]))->assertNotFound();
+
+        $this->get(route('reports.stock-card.pdf', ['item_id' => 999999]))->assertSessionHasErrors('item_id');
+    }
+
+    public function test_stock_card_prints_a_page_per_selected_item(): void
+    {
+        $this->actingAs($this->admin);
+
+        $one = $this->get(route('reports.stock-card.pdf', ['item_ids' => [$this->paper->id]]))->assertOk();
+        $two = $this->get(route('reports.stock-card.pdf', ['item_ids' => [$this->paper->id, $this->gauze->id]]))
+            ->assertOk()->assertHeader('content-type', 'application/pdf');
+
+        $pages = fn ($response) => preg_match_all('/\/Type\s*\/Page[^s]/', $response->getContent());
+        $this->assertSame(1, $pages($one));
+        $this->assertSame(2, $pages($two));
+        $this->assertSame(2, $pages($this->get(route('reports.stock-card.pdf', ['item_id' => 'all']))));
+
+        $this->get(route('reports.stock-card.pdf', ['item_ids' => [999999]]))->assertSessionHasErrors('item_ids.0');
+        $this->get(route('reports.stock-card.pdf'))->assertSessionHasErrors(['item_id', 'item_ids']);
+    }
+
     public function test_report_pdfs_render_with_scope_filters(): void
     {
         $this->actingAs($this->admin);

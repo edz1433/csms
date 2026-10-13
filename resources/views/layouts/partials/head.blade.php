@@ -298,7 +298,9 @@
   // fund cluster / account title. `records` are {value, text, funds[],
   // accounts[]}; returns a function to re-apply the scope, which keeps the
   // current selection when it survives and reports how many remain.
-  window.CPSU.scopePicker = function (tomSelect, records, placeholder) {
+  // `extra` options (e.g. an "All" choice) are always kept at the top.
+  window.CPSU.scopePicker = function (tomSelect, records, placeholder, extra) {
+    extra = extra || [];
     return function (fundId, accountId) {
       var keep = records.filter(function (r) {
         var fundOk = !fundId || (r.funds || []).indexOf(Number(fundId)) !== -1;
@@ -306,17 +308,22 @@
         return fundOk && accountOk;
       });
 
-      var current = tomSelect.getValue();
-      var survives = keep.some(function (r) { return String(r.value) === String(current); });
+      // Multi-select pickers return an array; keep every value that survives.
+      var multi = Array.isArray(tomSelect.getValue());
+      var allowed = extra.concat(keep).map(function (r) { return String(r.value); });
+      var kept = [].concat(tomSelect.getValue()).filter(function (v) {
+        return v !== '' && allowed.indexOf(String(v)) !== -1;
+      });
 
       tomSelect.clear(true);
       tomSelect.clearOptions();
-      tomSelect.addOption({ value: '', text: placeholder || 'Search…' });
+      if (!multi) { tomSelect.addOption({ value: '', text: placeholder || 'Search…' }); }
+      tomSelect.addOptions(extra);
       tomSelect.addOptions(keep);
       tomSelect.refreshOptions(false);
-      if (current && survives) { tomSelect.setValue(current, true); }
+      if (kept.length) { tomSelect.setValue(multi ? kept : kept[0], true); }
 
-      return { count: keep.length, kept: current && survives ? current : '' };
+      return { count: keep.length, kept: multi ? kept : (kept[0] || '') };
     };
   };
 

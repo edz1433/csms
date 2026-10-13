@@ -88,11 +88,68 @@ class ReportsController extends Controller
      */
     public function stockCardPdf(Request $request)
     {
-        $request->validate(['item_id' => ['required', 'exists:items,id']]);
+        $request->validate([
+            'item_id' => ['required_without:item_ids', function ($attr, $value, $fail) {
+                if ($value !== 'all' && ! Item::whereKey($value)->exists()) {
+                    $fail('The selected item is invalid.');
+                }
+            }],
+            'item_ids' => ['required_without:item_id', 'array'],
+            'item_ids.*' => ['integer', 'exists:items,id'],
+            'fund_cluster_id' => ['nullable', 'exists:fund_clusters,id'],
+            'account_title_id' => ['nullable', 'exists:account_titles,id'],
+        ]);
         [$from, $to] = $this->range($request, 'year');
+        [$fundClusterId, $accountTitleId] = $this->scopeFilters($request);
 
-        $item = Item::with(['unit', 'accountTitle'])->findOrFail($request->integer('item_id'));
+        // One card (page) per item: every item matching the fund / account
+        // scope for "All", otherwise the items picked.
+        $items = $request->input('item_id') === 'all'
+            ? $this->scopedItems($fundClusterId, $accountTitleId)
+                ->with(['unit', 'accountTitle'])->orderBy('name')->get()
+            : Item::with(['unit', 'accountTitle'])
+                ->whereKey(collect($request->input('item_ids', []))->push($request->input('item_id'))->filter()->all())
+                ->orderBy('name')->get();
 
+        abort_if($items->isEmpty(), 404, 'No items match these filters.');
+
+        $withQr = $request->boolean('qr');
+        $cards = $items->map(function (Item $item) use ($from, $to, $withQr) {
+            [$timeline, $beginning] = $this->stockCardTimeline($item, $from, $to);
+
+            return [
+                'item' => $item,
+                'timeline' => $timeline,
+                'beginning' => $beginning,
+                // Optional: print the item's inventory tag alongside the card.
+                'qr' => $withQr ? Qr::dataUri(route('inventory.scan', $item), 200) : null,
+            ];
+        })->all();
+
+        $headerPath = public_path('images/cpsu-letterhead.png');
+        $header = is_file($headerPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($headerPath))
+            : null;
+
+        $pdf = Pdf::loadView('inventory.pdf', [
+            'cards' => $cards,
+            'header' => $header,
+            'fundCluster' => $fundClusterId ? FundCluster::find($fundClusterId) : null,
+        ])->setPaper('a4', 'portrait');
+
+        $name = count($cards) === 1
+            ? ($cards[0]['item']->stock_number ?? $cards[0]['item']->id)
+            : 'All-'.now()->format('Ymd');
+
+        return $pdf->stream('StockCard-'.$name.'.pdf');
+    }
+
+    /**
+     * An item's movements within [from, to] with their running balance, plus
+     * the balance forwarded into the period, as [timeline, beginning].
+     */
+    private function stockCardTimeline(Item $item, Carbon $from, Carbon $to): array
+    {
         $deliveries = $item->deliveryItems()->with(['delivery.supplier'])->get()->map(fn ($di) => [
             'type' => 'in',
             'date' => $di->delivery->received_at,
@@ -128,21 +185,7 @@ class ReportsController extends Controller
             }
         }
 
-        $headerPath = public_path('images/cpsu-letterhead.png');
-        $header = is_file($headerPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($headerPath))
-            : null;
-
-        $pdf = Pdf::loadView('inventory.pdf', [
-            'item' => $item,
-            'timeline' => $timeline,
-            'beginning' => $beginning,
-            'header' => $header,
-            // Optional: print the item's inventory tag alongside the card.
-            'qr' => $request->boolean('qr') ? Qr::dataUri(route('inventory.scan', $item), 200) : null,
-        ])->setPaper('a4', 'portrait');
-
-        return $pdf->stream('StockCard-'.($item->stock_number ?? $item->id).'.pdf');
+        return [$timeline, $beginning];
     }
 
     /* ---------------- Stock Status (all items, balance + valuation) ---------------- */
