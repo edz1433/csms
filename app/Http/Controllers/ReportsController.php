@@ -105,8 +105,9 @@ class ReportsController extends Controller
         // One card (page) per item: every item matching the fund / account
         // scope for "All", otherwise the items picked.
         $items = $request->input('item_id') === 'all'
-            ? $this->scopedItems($fundClusterId, $accountTitleId)
-                ->with(['unit', 'accountTitle'])->orderBy('name')->get()
+            ? Item::with(['unit', 'accountTitle'])
+                ->whereKey($this->scopedItemIds($fundClusterId, $accountTitleId)->all())
+                ->orderBy('name')->get()
             : Item::with(['unit', 'accountTitle'])
                 ->whereKey(collect($request->input('item_ids', []))->push($request->input('item_id'))->filter()->all())
                 ->orderBy('name')->get();

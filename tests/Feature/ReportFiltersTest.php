@@ -289,6 +289,14 @@ class ReportFiltersTest extends TestCase
         $this->assertSame(2, $pages($two));
         $this->assertSame(2, $pages($this->get(route('reports.stock-card.pdf', ['item_id' => 'all']))));
 
+        // "All items" honours the account title and fund cluster scope.
+        $this->assertSame(1, $pages($this->get(route('reports.stock-card.pdf', [
+            'item_id' => 'all', 'account_title_id' => $this->officeSupplies->id,
+        ]))));
+        $this->assertSame(1, $pages($this->get(route('reports.stock-card.pdf', [
+            'item_id' => 'all', 'fund_cluster_id' => $this->fundB->id, 'account_title_id' => $this->drugs->id,
+        ]))));
+
         $this->get(route('reports.stock-card.pdf', ['item_ids' => [999999]]))->assertSessionHasErrors('item_ids.0');
         $this->get(route('reports.stock-card.pdf'))->assertSessionHasErrors(['item_id', 'item_ids']);
     }

@@ -79,6 +79,19 @@ trait ReportScope
             ])->values();
     }
 
+    /**
+     * Ids of the picker records matching the scope — the same test the
+     * browser's CPSU.scopePicker applies, so "All items" prints exactly the
+     * items the picker lists.
+     */
+    protected function scopedItemIds(?int $fundClusterId, ?int $accountTitleId): Collection
+    {
+        return $this->scopedItemRecords()
+            ->filter(fn ($r) => (! $fundClusterId || in_array($fundClusterId, $r['funds'], true))
+                && (! $accountTitleId || in_array($accountTitleId, $r['accounts'], true)))
+            ->pluck('value');
+    }
+
     /** [item id => fund cluster ids] across both receipts and issues. */
     private function itemFundClusters(): Collection
     {
